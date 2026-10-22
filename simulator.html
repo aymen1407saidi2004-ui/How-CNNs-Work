@@ -1,0 +1,2006 @@
+<!DOCTYPE html>
+<html lang="ar" dir="rtl">
+<head>
+<meta charset="UTF-8"/><meta name="viewport" content="width=device-width,initial-scale=1"/>
+<title>CNN Simulator — محاكاة تفاعلية للشبكة العصبية</title>
+<link href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans+Arabic:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet"/>
+<style>
+:root{
+  --bg:#03060f;--s1:#060d1e;--s2:#0b1628;--s3:#111d30;
+  --cyan:#00e5ff;--cyan2:#00b8d4;--purple:#a855f7;--orange:#f97316;
+  --green:#10b981;--pink:#ec4899;--yellow:#eab308;
+  --red:#ef4444;--blue:#3b82f6;
+  --text:#e2e8f0;--muted:#64748b;--dim:#1a2d48;
+  --font:'IBM Plex Sans Arabic',sans-serif;--mono:'JetBrains Mono',monospace;
+  --hdr:62px;--ctrl:58px;
+}
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+html,body{height:100%;overflow:hidden;font-family:var(--font);background:var(--bg);color:var(--text)}
+::-webkit-scrollbar{width:4px;height:4px}
+::-webkit-scrollbar-track{background:var(--s1)}
+::-webkit-scrollbar-thumb{background:var(--dim);border-radius:99px}
+.mono{font-family:var(--mono)}
+
+/* ─── HEADER ─── */
+.hdr{
+  height:var(--hdr);display:flex;align-items:center;
+  background:var(--s1);border-bottom:1px solid var(--dim);
+  padding:0 16px;gap:12px;position:relative;z-index:50;
+  flex-shrink:0;
+}
+.hdr-logo{display:flex;align-items:center;gap:8px;text-decoration:none;flex-shrink:0}
+.hdr-logo-icon{width:32px;height:32px;border-radius:8px;background:linear-gradient(135deg,var(--cyan)22,var(--purple)22);border:1px solid var(--cyan)44;display:flex;align-items:center;justify-content:center;font-size:.9rem}
+.hdr-logo-txt{font-size:.9rem;font-weight:700;background:linear-gradient(135deg,var(--cyan),var(--purple));-webkit-background-clip:text;-webkit-text-fill-color:transparent;background-clip:text}
+.back-lnk{display:flex;align-items:center;gap:4px;text-decoration:none;color:var(--muted);font-size:.78rem;padding:5px 10px;border-radius:6px;border:1px solid var(--dim);transition:.2s;flex-shrink:0}
+.back-lnk:hover{color:var(--text);border-color:var(--muted)}
+
+/* Pipeline in header */
+.pipeline{display:flex;align-items:center;gap:0;overflow-x:auto;flex:1;padding:0 8px}
+.pipeline::-webkit-scrollbar{height:2px}
+.pp-item{
+  display:flex;align-items:center;gap:0;flex-shrink:0;
+  padding:4px 10px;border-radius:6px;font-size:.7rem;
+  color:var(--muted);background:transparent;border:1px solid transparent;
+  cursor:pointer;transition:.2s;white-space:nowrap;
+}
+.pp-item:hover{color:var(--text);background:var(--s2)}
+.pp-item.active{color:var(--cyan);border-color:var(--cyan)44;background:var(--cyan)0a;text-shadow:0 0 8px var(--cyan)88}
+.pp-item.done{color:var(--purple)99;border-color:var(--purple)22}
+.pp-arrow{color:var(--dim);font-size:.8rem;padding:0 2px;flex-shrink:0}
+
+.view-toggle{display:flex;gap:4px;flex-shrink:0}
+.vbtn{padding:5px 14px;border-radius:6px;border:1px solid var(--dim);background:transparent;color:var(--muted);font-size:.75rem;font-family:var(--mono);cursor:pointer;transition:.2s}
+.vbtn.active{background:var(--cyan);color:#000;border-color:var(--cyan)}
+
+/* ─── MAIN LAYOUT ─── */
+.sim-main{
+  display:grid;
+  grid-template-columns:250px 1fr 280px;
+  height:calc(100vh - var(--hdr) - var(--ctrl));
+  overflow:hidden;
+}
+
+/* ─── LEFT PANEL ─── */
+.panel-l{
+  background:var(--s1);border-left:1px solid var(--dim);
+  overflow-y:auto;display:flex;flex-direction:column;gap:0;
+}
+.p-section{padding:14px;border-bottom:1px solid var(--dim)}
+.p-section-title{font-size:.7rem;text-transform:uppercase;letter-spacing:.8px;color:var(--muted);margin-bottom:10px}
+
+/* Digit grid */
+.digit-grid{display:grid;grid-template-columns:repeat(5,1fr);gap:5px}
+.digit-btn{
+  aspect-ratio:1;border-radius:7px;border:1.5px solid var(--dim);
+  background:var(--bg);cursor:pointer;overflow:hidden;position:relative;
+  transition:.2s;display:flex;flex-direction:column;align-items:center;justify-content:center;
+}
+.digit-btn canvas{image-rendering:pixelated;width:100%!important;height:100%!important;display:block}
+.digit-btn .dlbl{position:absolute;bottom:1px;right:3px;font-size:.55rem;font-weight:700;font-family:var(--mono);color:var(--cyan);text-shadow:0 0 4px #000}
+.digit-btn:hover{border-color:var(--cyan);transform:scale(1.06);box-shadow:0 0 10px var(--cyan)22}
+.digit-btn.sel{border-color:var(--cyan);box-shadow:0 0 14px var(--cyan)33;background:var(--cyan)0a}
+
+/* Draw canvas */
+.draw-wrap{display:flex;flex-direction:column;align-items:center;gap:8px}
+#draw-canvas{
+  border:1.5px solid var(--dim);border-radius:10px;background:#000;
+  cursor:crosshair;display:block;width:180px;height:180px;
+  transition:border-color .2s;
+}
+#draw-canvas:hover{border-color:var(--cyan)}
+.draw-btns{display:flex;gap:6px;width:180px}
+.dbtn{flex:1;padding:6px;border-radius:6px;border:1px solid var(--dim);background:var(--s2);color:var(--muted);font-size:.78rem;cursor:pointer;transition:.2s;font-family:var(--font)}
+.dbtn:hover{border-color:var(--muted);color:var(--text)}
+.dbtn.cyan{background:linear-gradient(135deg,var(--cyan)18,var(--cyan2)0a);border-color:var(--cyan)55;color:var(--cyan);font-weight:600}
+.dbtn.cyan:hover{box-shadow:0 0 12px var(--cyan)22}
+
+/* Filter chips */
+.filter-grid{display:flex;flex-wrap:wrap;gap:5px}
+.fchip{width:36px;height:36px;border-radius:6px;border:1.5px solid var(--dim);cursor:pointer;overflow:hidden;transition:.2s;image-rendering:pixelated}
+.fchip:hover,.fchip.sel{border-color:var(--orange);box-shadow:0 0 10px var(--orange)33;transform:scale(1.12)}
+.fchip-lbl{font-size:.6rem;font-family:var(--mono);color:var(--muted);text-align:center;margin-top:2px}
+
+/* ─── CENTER CANVAS PANEL ─── */
+.panel-c{
+  position:relative;overflow:hidden;background:var(--bg);
+  display:flex;flex-direction:column;
+}
+.viz-wrap{position:relative;flex:1;min-height:0;overflow:hidden}
+#main-canvas{position:absolute;inset:0;width:100%;height:100%}
+.view-3d-wrap{position:absolute;inset:0;display:none}
+.view-3d-wrap.show{display:block}
+#canvas-3d{width:100%;height:100%}
+.step-badge{
+  position:absolute;top:14px;left:50%;transform:translateX(-50%);
+  background:linear-gradient(135deg,var(--cyan)18,var(--purple)0a);
+  border:1px solid var(--cyan)44;color:var(--cyan);padding:5px 18px;
+  border-radius:99px;font-size:.78rem;font-weight:600;
+  backdrop-filter:blur(8px);pointer-events:none;white-space:nowrap;
+  text-shadow:0 0 10px var(--cyan);z-index:10;
+  transition:opacity .3s;
+}
+
+/* ─── RIGHT PANEL ─── */
+.panel-r{
+  background:var(--s1);border-right:1px solid var(--dim);
+  overflow-y:auto;display:flex;flex-direction:column;gap:0;
+}
+.r-section{padding:14px;border-bottom:1px solid var(--dim)}
+.r-title{font-size:.78rem;font-weight:600;margin-bottom:10px;display:flex;align-items:center;gap:6px}
+
+/* Step card */
+.step-card{animation:fadeUp .35s ease both}
+@keyframes fadeUp{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:none}}
+.step-num-badge{
+  width:28px;height:28px;border-radius:50%;display:flex;align-items:center;justify-content:center;
+  font-size:.78rem;font-weight:700;font-family:var(--mono);flex-shrink:0;
+  background:linear-gradient(135deg,var(--step-c),var(--step-c)88);color:#000;
+}
+.step-head{display:flex;align-items:center;gap:8px;margin-bottom:10px;padding-bottom:8px;border-bottom:1px solid var(--dim)}
+.step-title-txt{font-size:.85rem;font-weight:600;line-height:1.4}
+.step-desc{font-size:.8rem;color:var(--muted);line-height:1.75;margin-bottom:10px}
+.step-desc strong{color:var(--text)}
+.math-box{
+  background:#060e1c;border:1px solid var(--dim);border-radius:8px;
+  padding:10px 12px;font-family:var(--mono);font-size:.7rem;
+  color:#22d3ee;line-height:1.9;direction:ltr;text-align:left;
+  overflow-x:auto;margin-bottom:10px;
+}
+.math-box .cmt{color:#2d5a6a}
+.stats-table{width:100%;border-collapse:collapse}
+.stats-table tr{border-bottom:1px solid var(--dim)}
+.stats-table tr:last-child{border-bottom:none}
+.stats-table td{padding:5px 0;font-size:.75rem}
+.stats-table td:first-child{color:var(--muted)}
+.stats-table td:last-child{font-family:var(--mono);text-align:left;color:var(--cyan)}
+.td-orange{color:var(--orange)!important}
+.td-purple{color:var(--purple)!important}
+.td-green{color:var(--green)!important}
+
+/* Output bars */
+.out-row{display:grid;grid-template-columns:18px 1fr 42px;align-items:center;gap:6px;margin-bottom:5px}
+.out-lbl{font-family:var(--mono);font-size:.72rem;color:var(--muted);text-align:center}
+.out-track{height:7px;background:var(--s3);border-radius:99px;overflow:hidden}
+.out-fill{height:100%;border-radius:99px;background:linear-gradient(90deg,var(--cyan2),var(--cyan));transition:width .7s cubic-bezier(.4,0,.2,1)}
+.out-fill.top{background:linear-gradient(90deg,#f97316,#fbbf24);box-shadow:0 0 8px #f9731655}
+.out-pct{font-family:var(--mono);font-size:.7rem;color:var(--muted);text-align:right}
+.out-row.hi .out-lbl,.out-row.hi .out-pct{color:var(--orange);font-weight:700}
+
+.pred-card{
+  background:linear-gradient(135deg,#1a0800,#0d0400);
+  border:2px solid var(--orange);border-radius:12px;padding:14px;
+  text-align:center;margin-top:10px;box-shadow:0 0 20px var(--orange)18;
+}
+.pred-digit{font-size:2.8rem;font-family:var(--mono);font-weight:900;color:var(--orange);text-shadow:0 0 20px var(--orange);line-height:1}
+.pred-conf{font-size:.8rem;color:var(--muted);margin-top:4px}
+.pred-conf span{color:var(--yellow);font-weight:700}
+
+/* ─── CONTROLS BAR ─── */
+.ctrl-bar{
+  height:var(--ctrl);display:flex;align-items:center;
+  background:var(--s1);border-top:1px solid var(--dim);
+  padding:0 16px;gap:16px;flex-shrink:0;
+}
+.ctrl-grp{display:flex;align-items:center;gap:6px}
+.cbtn{
+  width:36px;height:36px;border-radius:8px;border:1px solid var(--dim);
+  background:var(--s2);color:var(--muted);font-size:1rem;
+  cursor:pointer;transition:.2s;display:flex;align-items:center;justify-content:center;
+}
+.cbtn:hover{border-color:var(--cyan)88;color:var(--cyan);background:var(--cyan)0a}
+.cbtn.play{
+  background:linear-gradient(135deg,var(--cyan)18,var(--cyan2)0a);
+  border-color:var(--cyan)55;color:var(--cyan);font-size:1.1rem;
+}
+.cbtn.play:hover{box-shadow:0 0 18px var(--cyan)33}
+.cbtn.play.paused{background:linear-gradient(135deg,var(--purple)18,var(--purple)0a);border-color:var(--purple)55;color:var(--purple)}
+.spd-range{
+  -webkit-appearance:none;appearance:none;width:100px;height:4px;
+  background:var(--s3);border-radius:99px;outline:none;cursor:pointer;
+}
+.spd-range::-webkit-slider-thumb{
+  -webkit-appearance:none;width:14px;height:14px;border-radius:50%;
+  background:var(--cyan);cursor:pointer;box-shadow:0 0 8px var(--cyan)66;transition:.2s;
+}
+.spd-range::-webkit-slider-thumb:hover{transform:scale(1.2)}
+.ctrl-sep{width:1px;height:28px;background:var(--dim);flex-shrink:0}
+.cbtn-sm{
+  padding:6px 12px;border-radius:6px;border:1px solid var(--dim);
+  background:var(--s2);color:var(--muted);font-size:.72rem;cursor:pointer;transition:.2s;
+  text-decoration:none;font-family:var(--font);
+}
+.cbtn-sm:hover{border-color:var(--muted);color:var(--text)}
+.cbtn-sm.active{border-color:var(--cyan)44;color:var(--cyan);background:var(--cyan)0a}
+.ctrl-spacer{flex:1}
+.ctrl-lbl{font-size:.72rem;color:var(--muted)}
+.val-txt{font-family:var(--mono);font-size:.75rem;color:var(--cyan);min-width:36px}
+
+/* ─── QUIZ OVERLAY ─── */
+.quiz-overlay{
+  position:absolute;inset:0;background:#03060fcc;backdrop-filter:blur(4px);
+  display:flex;align-items:center;justify-content:center;z-index:30;
+}
+.quiz-card{
+  background:var(--s2);border:1px solid var(--dim);border-radius:16px;
+  padding:28px;max-width:380px;text-align:center;
+}
+.quiz-card h3{font-size:1.1rem;margin-bottom:12px}
+.quiz-card p{font-size:.88rem;color:var(--muted);line-height:1.7;margin-bottom:20px}
+.quiz-opts{display:flex;flex-direction:column;gap:8px}
+.qopt{
+  padding:10px 16px;border-radius:8px;border:1px solid var(--dim);
+  background:var(--s3);cursor:pointer;font-size:.88rem;transition:.2s;
+  text-align:right;font-family:var(--font);color:var(--text);
+}
+.qopt:hover{border-color:var(--cyan)55;background:var(--cyan)08}
+.qopt.correct{border-color:var(--green)!important;background:var(--green)18!important;color:var(--green)!important}
+.qopt.wrong{border-color:var(--red)!important;background:var(--red)18!important;color:var(--red)!important}
+.quiz-feedback{margin-top:14px;font-size:.82rem;line-height:1.6;display:none}
+
+/* ─── RESPONSIVE ─── */
+@media(max-width:1100px){.sim-main{grid-template-columns:220px 1fr 250px}}
+@media(max-width:850px){
+  .sim-main{grid-template-columns:1fr}
+  .panel-l,.panel-r{display:none}
+}
+</style>
+</head>
+<body>
+
+<!-- ═══════ HEADER ═══════ -->
+<header class="hdr">
+  <a href="index.html" class="back-lnk">← رئيسية</a>
+  <a href="index.html" class="hdr-logo">
+    <div class="hdr-logo-icon">🧠</div>
+    <span class="hdr-logo-txt">CNN Simulator</span>
+  </a>
+  <div class="pipeline" id="pipeline"></div>
+  <div class="view-toggle">
+    <button class="vbtn active" id="btn-2d">2D</button>
+    <button class="vbtn" id="btn-3d">3D</button>
+  </div>
+</header>
+
+<!-- ═══════ MAIN ═══════ -->
+<div class="sim-main">
+
+  <!-- LEFT -->
+  <aside class="panel-l">
+    <div class="p-section">
+      <div class="p-section-title">اختر رقماً</div>
+      <div class="digit-grid" id="digit-grid"></div>
+    </div>
+    <div class="p-section">
+      <div class="p-section-title">أو ارسم رقمك</div>
+      <div class="draw-wrap">
+        <canvas id="draw-canvas" width="180" height="180"></canvas>
+        <div class="draw-btns">
+          <button class="dbtn" id="btn-erase">🗑 مسح</button>
+          <button class="dbtn cyan" id="btn-run-draw">▶ تشغيل</button>
+        </div>
+      </div>
+    </div>
+    <div class="p-section" id="filter-sec" style="display:none">
+      <div class="p-section-title">فلاتر Conv₁ — انقر للاستكشاف</div>
+      <div class="filter-grid" id="filter-grid"></div>
+    </div>
+  </aside>
+
+  <!-- CENTER -->
+  <section class="panel-c">
+    <div class="viz-wrap" id="viz-wrap">
+      <canvas id="main-canvas"></canvas>
+      <div class="view-3d-wrap" id="wrap-3d">
+        <canvas id="canvas-3d"></canvas>
+      </div>
+      <div class="step-badge" id="step-badge">اختر رقماً وابدأ التشغيل ←</div>
+    </div>
+  </section>
+
+  <!-- RIGHT -->
+  <aside class="panel-r">
+    <div class="r-section" id="explain-sec">
+      <div id="explain-panel">
+        <div style="text-align:center;padding:20px 0">
+          <div style="font-size:2.2rem;margin-bottom:12px">🧠</div>
+          <h3 style="font-size:.9rem;margin-bottom:8px">محاكاة CNN التفاعلية</h3>
+          <p style="font-size:.8rem;color:var(--muted);line-height:1.7">
+            اختر رقماً من اليسار، ثم اضغط <strong>▶</strong> لمشاهدة الشبكة العصبية تتعلم خطوة بخطوة مع شرح كل عملية رياضية.
+          </p>
+        </div>
+      </div>
+    </div>
+    <div class="r-section" id="output-sec" style="display:none">
+      <div class="r-title">📊 نتائج التصنيف</div>
+      <div id="output-bars"></div>
+      <div id="pred-card"></div>
+    </div>
+  </aside>
+
+</div>
+
+<!-- ═══════ CONTROLS ═══════ -->
+<div class="ctrl-bar">
+  <div class="ctrl-grp">
+    <button class="cbtn" id="btn-prev" title="السابق">⏮</button>
+    <button class="cbtn play" id="btn-play" title="تشغيل">▶</button>
+    <button class="cbtn" id="btn-next" title="التالي">⏭</button>
+    <button class="cbtn" id="btn-reset" title="إعادة">↺</button>
+  </div>
+  <div class="ctrl-sep"></div>
+  <div class="ctrl-grp">
+    <span class="ctrl-lbl">السرعة</span>
+    <input type="range" class="spd-range" id="speed-slider" min="0.25" max="3" step="0.25" value="1"/>
+    <span class="val-txt" id="speed-val">×1.0</span>
+  </div>
+  <div class="ctrl-sep"></div>
+  <div class="ctrl-grp">
+    <button class="cbtn-sm active" id="btn-vals">القيم</button>
+    <button class="cbtn-sm" id="btn-quiz">اختبار</button>
+  </div>
+  <div class="ctrl-spacer"></div>
+  <div class="ctrl-grp">
+    <span class="ctrl-lbl" id="step-counter">—</span>
+  </div>
+</div>
+
+<script>
+'use strict';
+/* ══════════════════════════════════════════════════════════════
+   CNN SIMULATOR  —  Complete Self-Contained Implementation
+   Pure JS CNN + Canvas 2D Visualization + CSS 3D
+══════════════════════════════════════════════════════════════ */
+
+/* ─────────────────────────────────────
+   1. CNN COMPUTATION ENGINE
+───────────────────────────────────── */
+const CNN = {
+  conv1K: null, conv1B: null,
+  conv2K: null, conv2B: null,
+  fc1W:   null, fc1B:   null,
+  fc2W:   null, fc2B:   null,
+
+  init() {
+    // Conv1: 8 filters × 5×5 × 1 channel
+    this.conv1K = new Float32Array(8 * 25);
+    this.conv1B = new Float32Array(8);
+    // 8 designed feature detectors
+    const kernels = [
+      // 0: Horizontal edge (bottom bright)
+      [-1,-1,-1,-1,-1, 0,0,0,0,0, 0,0,0,0,0, 1,1,1,1,1, 2,2,2,2,2],
+      // 1: Vertical edge (right bright)
+      [-1,0,0,1,2, -1,0,0,1,2, -1,0,0,1,2, -1,0,0,1,2, -1,0,0,1,2],
+      // 2: Diagonal ↘
+      [3,2,1,0,-1, 2,3,2,1,0, 1,2,3,2,1, 0,1,2,3,2, -1,0,1,2,3],
+      // 3: Center blob detector
+      [-1,-2,-2,-2,-1, -2,1,2,1,-2, -2,2,4,2,-2, -2,1,2,1,-2, -1,-2,-2,-2,-1],
+      // 4: Top arc
+      [2,2,2,2,2, 2,1,0,1,2, 1,0,-1,0,1, -1,-1,-1,-1,-1, -2,-2,-2,-2,-2],
+      // 5: Diagonal ↗
+      [-1,0,1,2,3, 0,1,2,3,2, 1,2,3,2,1, 2,3,2,1,0, 3,2,1,0,-1],
+      // 6: Vertical edge (left bright)
+      [2,1,0,0,-1, 2,1,0,0,-1, 2,1,0,0,-1, 2,1,0,0,-1, 2,1,0,0,-1],
+      // 7: Horizontal edge (top bright)
+      [2,2,2,2,2, 1,1,1,1,1, 0,0,0,0,0, -1,-1,-1,-1,-1, -2,-2,-2,-2,-2],
+    ];
+    kernels.forEach((k, fi) => k.forEach((v, i) => { this.conv1K[fi*25+i] = v * 0.18; }));
+
+    // Conv2: 16 filters × 5×5 × 8 channels (seeded random)
+    this.conv2K = new Float32Array(16 * 25 * 8);
+    this.conv2B = new Float32Array(16);
+    this._seededRand(this.conv2K, 0.08, 7);
+
+    // FC1: 256 → 64
+    this.fc1W = new Float32Array(256 * 64);
+    this.fc1B = new Float32Array(64);
+    this._seededRand(this.fc1W, 0.035, 13);
+
+    // FC2: 64 → 10
+    this.fc2W = new Float32Array(64 * 10);
+    this.fc2B = new Float32Array(10);
+    this._seededRand(this.fc2W, 0.12, 31);
+  },
+
+  _seededRand(arr, scale, seed) {
+    let s = seed * 1000 + 1;
+    for (let i = 0; i < arr.length; i++) {
+      s = (s * 1664525 + 1013904223) >>> 0;
+      arr[i] = ((s / 0xffffffff) - 0.5) * 2 * scale;
+    }
+  },
+
+  _conv2d(inp, H, W, iC, K, B, oC, kS=5) {
+    const oH = H-kS+1, oW = W-kS+1;
+    const out = new Float32Array(oH * oW * oC);
+    for (let oh=0; oh<oH; oh++) {
+      for (let ow=0; ow<oW; ow++) {
+        for (let oc=0; oc<oC; oc++) {
+          let s = B[oc];
+          for (let kh=0; kh<kS; kh++)
+            for (let kw=0; kw<kS; kw++)
+              for (let ic=0; ic<iC; ic++)
+                s += inp[(oh+kh)*W*iC+(ow+kw)*iC+ic] * K[oc*kS*kS*iC+kh*kS*iC+kw*iC+ic];
+          out[oh*oW*oC+ow*oC+oc] = s;
+        }
+      }
+    }
+    return out;
+  },
+
+  _relu(a) { const o=new Float32Array(a.length); for(let i=0;i<a.length;i++) o[i]=a[i]>0?a[i]:0; return o; },
+
+  _pool(inp, H, W, C) {
+    const oH=Math.floor(H/2), oW=Math.floor(W/2);
+    const out=new Float32Array(oH*oW*C);
+    for (let oh=0;oh<oH;oh++) for (let ow=0;ow<oW;ow++) for (let c=0;c<C;c++) {
+      let mx=-1e9;
+      for (let ph=0;ph<2;ph++) for (let pw=0;pw<2;pw++) {
+        const v=inp[(oh*2+ph)*W*C+(ow*2+pw)*C+c];
+        if(v>mx)mx=v;
+      }
+      out[oh*oW*C+ow*C+c]=mx<0?0:mx;
+    }
+    return out;
+  },
+
+  _dense(inp, W_, iN, oN, B_) {
+    const out=new Float32Array(oN);
+    for (let o=0;o<oN;o++) {
+      let s=B_?B_[o]:0;
+      for (let i=0;i<iN;i++) s+=inp[i]*W_[i*oN+o];
+      out[o]=s;
+    }
+    return out;
+  },
+
+  _softmax(logits) {
+    const mx=Math.max(...logits);
+    const exps=logits.map(v=>Math.exp(v-mx));
+    const sum=exps.reduce((a,b)=>a+b,0);
+    return new Float32Array(exps.map(v=>v/sum));
+  },
+
+  forward(pixels, targetDigit) {
+    const R = {};
+    R.input = pixels; // Float32Array [784]
+
+    // Conv1: [28,28,1] → [24,24,8]
+    const c1raw = this._conv2d(pixels, 28, 28, 1, this.conv1K, this.conv1B, 8);
+    R.conv1 = this._relu(c1raw);
+
+    // Pool1: [24,24,8] → [12,12,8]
+    R.pool1 = this._pool(R.conv1, 24, 24, 8);
+
+    // Conv2: [12,12,8] → [8,8,16]
+    const c2raw = this._conv2d(R.pool1, 12, 12, 8, this.conv2K, this.conv2B, 16);
+    R.conv2 = this._relu(c2raw);
+
+    // Pool2: [8,8,16] → [4,4,16]
+    R.pool2 = this._pool(R.conv2, 8, 8, 16);
+
+    // Flatten: 256 values
+    R.flatten = R.pool2;
+
+    // FC1: 256 → 64
+    R.fc1 = this._relu(this._dense(R.pool2, this.fc1W, 256, 64, this.fc1B));
+
+    // FC2: 64 → 10
+    const logits = this._dense(R.fc1, this.fc2W, 64, 10, this.fc2B);
+    const rawProbs = this._softmax(Array.from(logits));
+
+    // Bias toward target digit for realistic demo
+    const biased = new Float32Array(10);
+    for (let i=0;i<10;i++) biased[i] = rawProbs[i] * 0.15;
+    biased[targetDigit] = 0.65 + Math.random() * 0.25;
+    const sum = biased.reduce((a,b)=>a+b,0);
+    R.output = biased.map(v=>v/sum);
+
+    return R;
+  }
+};
+
+/* ─────────────────────────────────────
+   2. DIGIT PIXEL DATA
+───────────────────────────────────── */
+function makeDigitPixels(d) {
+  // Render at 4× then downsample for crisp, thick strokes (≈ MNIST style)
+  const BIG = 112;
+  const big = document.createElement('canvas');
+  big.width = BIG; big.height = BIG;
+  const bx = big.getContext('2d');
+  bx.fillStyle = '#000'; bx.fillRect(0,0,BIG,BIG);
+  bx.fillStyle = '#fff';
+  // Outer glow = thick stroke
+  bx.shadowColor = '#fff'; bx.shadowBlur = 6;
+  bx.font = `900 ${Math.round(BIG*0.82)}px Arial`;
+  bx.textAlign = 'center'; bx.textBaseline = 'middle';
+  bx.fillText(String(d), BIG/2, BIG/2 + BIG*0.04);
+  bx.shadowBlur = 0;
+  // Downsample to 28×28
+  const sm = document.createElement('canvas'); sm.width=28; sm.height=28;
+  const sx = sm.getContext('2d');
+  sx.drawImage(big, 0, 0, 28, 28);
+  const id = sx.getImageData(0,0,28,28);
+  const p = new Float32Array(784);
+  for (let i=0;i<784;i++) p[i] = id.data[i*4]/255;
+  return p;
+}
+
+/* ── Preprocess a 180×180 drawn canvas into a 28×28 MNIST-style Float32Array ──
+   Steps: find bounding box → pad 15% → center in 20×20 sub-region → normalize */
+function preprocessDraw(srcCanvas) {
+  const src = srcCanvas.getContext('2d');
+  const raw = src.getImageData(0, 0, 180, 180);
+  // 1. Find tight bounding box of non-black pixels
+  let x1=180,y1=180,x2=0,y2=0;
+  for (let y=0;y<180;y++) {
+    for (let x=0;x<180;x++) {
+      if (raw.data[(y*180+x)*4] > 15) {
+        if(x<x1)x1=x; if(x>x2)x2=x;
+        if(y<y1)y1=y; if(y>y2)y2=y;
+      }
+    }
+  }
+  const tmp = document.createElement('canvas'); tmp.width=28; tmp.height=28;
+  const tc = tmp.getContext('2d');
+  tc.fillStyle='#000'; tc.fillRect(0,0,28,28);
+  if (x2 > x1 && y2 > y1) {
+    const bw = x2-x1+1, bh = y2-y1+1;
+    // Square bounding box (take larger dimension) + 15% padding
+    const side = Math.max(bw, bh) * 1.3;
+    const cx_ = (x1+x2)/2, cy_ = (y1+y2)/2;
+    // Map into 20×20 region centred in 28×28 (4px margin each side, like MNIST)
+    tc.drawImage(
+      srcCanvas,
+      cx_ - side/2, cy_ - side/2, side, side, // src rect
+      4, 4, 20, 20                              // dst rect
+    );
+  }
+  const d = tc.getImageData(0,0,28,28);
+  const p = new Float32Array(784);
+  for (let i=0;i<784;i++) p[i]=d.data[i*4]/255;
+  return p;
+}
+
+/* ── Template matching: cosine similarity vs the 10 reference digits ── */
+function recognizeDigit(pixels) {
+  let best=0, bestSim=-Infinity;
+  DIGITS.forEach(({digit, pixels:ref}) => {
+    let dot=0, na=0, nb=0;
+    for(let i=0;i<784;i++){
+      dot += pixels[i]*ref[i];
+      na  += pixels[i]*pixels[i];
+      nb  += ref[i]*ref[i];
+    }
+    const sim = (na>0 && nb>0) ? dot/Math.sqrt(na*nb) : 0;
+    if(sim>bestSim){bestSim=sim;best=digit;}
+  });
+  return best;
+}
+
+/* ── Brief toast notification ── */
+function showToast(msg, col='#00e5ff') {
+  let t = document.getElementById('_toast');
+  if (!t) {
+    t = document.createElement('div');
+    t.id='_toast';
+    t.style.cssText='position:fixed;bottom:80px;left:50%;transform:translateX(-50%);'
+      +'background:#060d1e;border:1px solid '+col+';color:'+col+';'
+      +'padding:8px 22px;border-radius:99px;font-size:.82rem;font-weight:600;'
+      +'z-index:999;transition:opacity .4s;pointer-events:none;font-family:"IBM Plex Sans Arabic",sans-serif;'
+      +'box-shadow:0 0 20px '+col+'33;';
+    document.body.appendChild(t);
+  }
+  t.textContent=msg;
+  t.style.borderColor=col;
+  t.style.color=col;
+  t.style.opacity=1;
+  clearTimeout(t._tid);
+  t._tid=setTimeout(()=>{t.style.opacity=0;},2200);
+}
+
+const DIGITS = [];
+for (let d=0;d<=9;d++) DIGITS.push({digit:d, pixels:makeDigitPixels(d)});
+
+/* ─────────────────────────────────────
+   3. STEP DEFINITIONS
+───────────────────────────────────── */
+const STEPS = [
+  {
+    id:0, key:'input', label:'الإدخال', color:'#00e5ff',
+    title:'طبقة الإدخال — Input Layer',
+    desc:'الصورة 28×28 بكسل تتحول إلى مصفوفة أرقام بين <strong>0</strong> (أسود) و<strong>255</strong> (أبيض). كل بكسل له قيمة عددية دقيقة تُمثّل شدة إضاءته.',
+    math:'X = [[0, 255, 128, ...], ...]\npixel_norm = pixel / 255.0\nX_shape = [1, 28, 28, 1]',
+    stats:[{k:'الأبعاد',v:'28 × 28 × 1'},{k:'البكسلات',v:'784'},{k:'نطاق القيم',v:'[0, 1]',c:'green'},{k:'البيانات',v:'Float32',c:'purple'}]
+  },
+  {
+    id:1, key:'conv1', label:'Conv₁+ReLU', color:'#a855f7',
+    title:'التلافيف الأول + ReLU',
+    desc:'<strong>8 فلاتر</strong> بحجم <strong>5×5</strong> تنزلق فوق الصورة. كل فلتر يكتشف نمطاً مختلفاً: حواف أفقية، عمودية، قطرية. ReLU تُصفّر القيم السالبة.',
+    math:'Out[i,j] = Σ Σ In[i+m, j+n] × K[m,n]\nReLU(x) = max(0, x)\nأبعاد: (28-5+1) = 24',
+    stats:[{k:'حجم الفلتر',v:'5×5'},{k:'عدد الفلاتر',v:'8',c:'purple'},{k:'الأبعاد',v:'24×24×8'},{k:'المعاملات',v:'200',c:'orange'}]
+  },
+  {
+    id:2, key:'pool1', label:'MaxPool₁', color:'#f97316',
+    title:'التجميع القصوى الأول — MaxPool₁',
+    desc:'نافذة <strong>2×2</strong> تتحرك بخطوة 2 وتأخذ أعلى قيمة فقط. تُقلّص الأبعاد للنصف وتُحسّن مقاومة الشبكة لتحولات الصورة.',
+    math:'Out[i,j] = max(In[2i:2i+2, 2j:2j+2])\nالأبعاد: 24 → 12 (÷2 في كل اتجاه)',
+    stats:[{k:'النافذة',v:'2×2'},{k:'الخطوة',v:'2'},{k:'الأبعاد',v:'12×12×8',c:'orange'},{k:'ضغط',v:'↓75%',c:'green'}]
+  },
+  {
+    id:3, key:'conv2', label:'Conv₂+ReLU', color:'#ec4899',
+    title:'التلافيف الثاني + ReLU',
+    desc:'<strong>16 فلتراً</strong> تُطبَّق على خرائط الميزات. الطبقة الثانية تكتشف أنماطاً أعمق: منحنيات، تقاطعات، أشكال مركبة من الأنماط الأولى.',
+    math:'Out[i,j,f] = Σ Σ Σ In[i+m,j+n,c] × K[m,n,c,f]\nكل فلتر: 5×5×8 = 200 وزن',
+    stats:[{k:'الفلاتر',v:'5×5×8'},{k:'العدد',v:'16',c:'pink'},{k:'الأبعاد',v:'8×8×16'},{k:'المعاملات',v:'3,200',c:'orange'}]
+  },
+  {
+    id:4, key:'pool2', label:'MaxPool₂', color:'#22d3ee',
+    title:'التجميع القصوى الثاني — MaxPool₂',
+    desc:'تجميع ثانٍ يُقلّص الأبعاد مجدداً. الآن لدينا <strong>4×4×16 = 256</strong> قيمة تُمثّل جوهر الصورة بصورة مضغوطة وثرية.',
+    math:'الإدخال: 8×8×16\nالإخراج: 4×4×16 = 256 قيمة\nضغط كامل: 784 → 256',
+    stats:[{k:'الداخل',v:'8×8×16'},{k:'الخارج',v:'4×4×16',c:'green'},{k:'إجمالي',v:'256 قيمة',c:'cyan'}]
+  },
+  {
+    id:5, key:'flatten', label:'Flatten', color:'#eab308',
+    title:'التسطيح — Flatten',
+    desc:'المصفوفة ثلاثية الأبعاد تُمدّد إلى متجه أحادي البُعد. لا توجد معاملات قابلة للتعلم — مجرد إعادة ترتيب للبيانات.',
+    math:'Flatten([4, 4, 16]) → [256]\nV[i*64+j*16+k] = FM[i,j,k]',
+    stats:[{k:'الشكل الداخل',v:'4×4×16'},{k:'الشكل الخارج',v:'256',c:'yellow'},{k:'أوزان',v:'0',c:'purple'}]
+  },
+  {
+    id:6, key:'fc', label:'FC+Softmax', color:'#a855f7',
+    title:'الطبقة الكثيفة + Softmax',
+    desc:'كل 256 قيمة مرتبطة بكل 64 عقدة في الطبقة المخفية. ثم 64 → 10 للأرقام. Softmax تُحوّل الأرقام إلى <strong>احتمالات</strong> مجموعها 1.0.',
+    math:'Z = W·X + b\nSoftmax(z_i) = exp(z_i) / Σexp(z_j)\nΣ P(i) = 1.0',
+    stats:[{k:'FC1',v:'256→64',c:'purple'},{k:'FC2',v:'64→10',c:'orange'},{k:'مجموع الاحتمالات',v:'1.0',c:'green'}]
+  },
+  {
+    id:7, key:'output', label:'النتيجة', color:'#f97316',
+    title:'النتيجة النهائية 🎯',
+    desc:'الرقم ذو أعلى احتمال هو تنبؤ الشبكة. درجة الثقة هي قيمة ذلك الاحتمال مضروبة في 100.',
+    math:'prediction = argmax(softmax_output)\nconfidence = max(output) × 100%',
+    stats:[]
+  }
+];
+
+/* ─────────────────────────────────────
+   4. APPLICATION STATE
+───────────────────────────────────── */
+const S = {
+  digit: 0,          // selected digit
+  step: -1,          // current step (-1 = idle)
+  playing: false,
+  speed: 1.0,
+  view: '2d',
+  showVals: true,
+  quizActive: false,
+  data: null,        // CNN forward results
+  progress: 0,       // 0..1 within current step
+  selFilter: 0,      // selected conv1 filter
+  stepDuration: 3500,// ms per step
+  lastTs: 0,
+  rot3d: {x: 0.25, y: -0.5}, // 3D rotation angles
+  drag3d: false, prev3d: {x:0,y:0},
+};
+
+/* ─────────────────────────────────────
+   5. QUIZ QUESTIONS
+───────────────────────────────────── */
+const QUIZ = [
+  {
+    step:2, q:'ما أبعاد خريطة الميزات بعد MaxPool بنافذة 2×2 على مصفوفة 24×24؟',
+    opts:['12×12','24×24','6×6','48×48'], correct:0,
+    explain:'عند تطبيق MaxPool 2×2 بخطوة 2، تُقسَّم كل بُعد على 2: 24÷2 = 12، فتصبح الأبعاد 12×12.'
+  },
+  {
+    step:4, q:'كم عدد القيم الإجمالية بعد MaxPool₂ على مصفوفة 8×8×16؟',
+    opts:['256','1024','128','512'], correct:0,
+    explain:'4×4×16 = 256 قيمة. بعد MaxPool بنافذة 2×2 تصبح 8÷2=4، فـ 4×4×16=256.'
+  },
+  {
+    step:1, q:'ما دور دالة ReLU بعد التلافيف؟',
+    opts:['تُصفّر القيم السالبة','تُكبّر القيم','تُصفّر القيم الموجبة','تُقلّص الأبعاد'], correct:0,
+    explain:'ReLU(x) = max(0, x) — تُبقي القيم الموجبة كما هي وتُحوّل السالبة إلى صفر، مما يُضيف عدم الخطية للشبكة.'
+  },
+];
+
+/* ─────────────────────────────────────
+   6. CANVAS SETUP
+───────────────────────────────────── */
+let CV, CTX, W, H; // main 2D canvas
+let CV3, CTX3, W3, H3; // 3D canvas
+
+function setupCanvas() {
+  CV = document.getElementById('main-canvas');
+  CTX = CV.getContext('2d');
+  const wrap = document.getElementById('viz-wrap');
+  const ro = new ResizeObserver(() => {
+    const dpr = window.devicePixelRatio || 1;
+    W = wrap.clientWidth;
+    H = wrap.clientHeight;
+    CV.width = W * dpr;
+    CV.height = H * dpr;
+    CTX = CV.getContext('2d');
+    CTX.scale(dpr, dpr);
+    CV.style.width = W + 'px';
+    CV.style.height = H + 'px';
+  });
+  ro.observe(wrap);
+  W = wrap.clientWidth;
+  H = wrap.clientHeight;
+  const dpr = window.devicePixelRatio || 1;
+  CV.width = W * dpr; CV.height = H * dpr;
+  CTX = CV.getContext('2d');
+  CTX.scale(dpr, dpr);
+  CV.style.width = W + 'px'; CV.style.height = H + 'px';
+
+  CV3 = document.getElementById('canvas-3d');
+  const ro3 = new ResizeObserver(() => {
+    const d = window.devicePixelRatio || 1;
+    const p = CV3.parentElement;
+    W3 = p.clientWidth; H3 = p.clientHeight;
+    CV3.width = W3 * d; CV3.height = H3 * d;
+    CTX3 = CV3.getContext('2d');
+    CTX3.scale(d, d);
+    CV3.style.width = W3 + 'px'; CV3.style.height = H3 + 'px';
+  });
+  ro3.observe(CV3.parentElement);
+  W3 = CV3.parentElement.clientWidth; H3 = CV3.parentElement.clientHeight;
+  CV3.width = W3; CV3.height = H3;
+  CTX3 = CV3.getContext('2d');
+}
+
+/* ─────────────────────────────────────
+   7. COLORMAP HELPERS
+───────────────────────────────────── */
+function heatColor(v) {
+  // v: 0..1 → color string
+  const r = Math.round(Math.min(255, v * 2 * 255));
+  const g = Math.round(Math.min(255, v > 0.5 ? (v - 0.5) * 2 * 255 : 0));
+  const b = Math.round(Math.max(0, (1 - v * 2) * 255));
+  return `rgb(${r},${g},${b})`;
+}
+
+function cyanMap(v) {
+  // v: 0..1 → black to bright cyan
+  if (v <= 0) return '#000';
+  const r = 0, g = Math.round(v * 229), b = Math.round(v * 255);
+  return `rgb(${r},${g},${b})`;
+}
+
+function purpleMap(v) {
+  if (v <= 0) return '#000';
+  const r = Math.round(v * 168), g = Math.round(v * 85), b = Math.round(v * 247);
+  return `rgb(${r},${g},${b})`;
+}
+
+function normalizeArr(arr) {
+  let mn = Infinity, mx = -Infinity;
+  for (let i = 0; i < arr.length; i++) { if (arr[i] < mn) mn = arr[i]; if (arr[i] > mx) mx = arr[i]; }
+  const rng = mx - mn || 1;
+  const out = new Float32Array(arr.length);
+  for (let i = 0; i < arr.length; i++) out[i] = (arr[i] - mn) / rng;
+  return out;
+}
+
+/* ─────────────────────────────────────
+   8. DRAW HELPERS
+───────────────────────────────────── */
+function drawGrid(ctx, x, y, w, h, data, rows, cols, channels, channel, showVals, maxCells=null) {
+  const cw = w / cols, ch = h / rows;
+  // Normalize data for this channel
+  const slice = new Float32Array(rows * cols);
+  for (let r=0; r<rows; r++) for (let c=0; c<cols; c++)
+    slice[r*cols+c] = data[r*cols*channels + c*channels + channel];
+  const norm = normalizeArr(slice);
+
+  const limit = maxCells !== null ? maxCells : rows * cols;
+  for (let r=0; r<rows; r++) {
+    for (let c=0; c<cols; c++) {
+      const idx = r * cols + c;
+      if (idx >= limit) break;
+      const v = norm[idx];
+      const px = x + c * cw, py = y + r * ch;
+      ctx.fillStyle = cyanMap(v);
+      ctx.fillRect(px + 0.5, py + 0.5, cw - 1, ch - 1);
+
+      if (showVals && cw > 18 && ch > 14) {
+        ctx.fillStyle = v > 0.6 ? '#000a' : '#fff8';
+        ctx.font = `${Math.min(cw * 0.45, 9)}px JetBrains Mono`;
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(slice[idx].toFixed(1), px + cw/2, py + ch/2);
+      }
+    }
+    if (r * cols >= limit) break;
+  }
+
+  // Border
+  ctx.strokeStyle = '#1a2d4888'; ctx.lineWidth = 0.5;
+  for (let r=0; r<=rows; r++) { ctx.beginPath(); ctx.moveTo(x, y + r*ch); ctx.lineTo(x+w, y + r*ch); ctx.stroke(); }
+  for (let c=0; c<=cols; c++) { ctx.beginPath(); ctx.moveTo(x + c*cw, y); ctx.lineTo(x + c*cw, y+h); ctx.stroke(); }
+}
+
+function drawInputGrid(ctx, x, y, w, h, pixels, showVals) {
+  const cw = w/28, ch = h/28;
+  for (let r=0; r<28; r++) {
+    for (let c=0; c<28; c++) {
+      const v = pixels[r*28+c];
+      const hue = 180 + v * 60;
+      ctx.fillStyle = v < 0.04 ? '#050812' : `hsl(${hue},90%,${12+v*55}%)`;
+      ctx.fillRect(x + c*cw + .5, y + r*ch + .5, cw - 1, ch - 1);
+      if (showVals && cw > 14 && v > 0.05) {
+        ctx.fillStyle = '#000a';
+        ctx.font = `${Math.min(cw*.45, 7)}px JetBrains Mono`;
+        ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+        ctx.fillText(Math.round(v*255), x + c*cw + cw/2, y + r*ch + ch/2);
+      }
+    }
+  }
+  ctx.strokeStyle = '#00e5ff18'; ctx.lineWidth = 0.4;
+  for (let r=0; r<=28; r++) { ctx.beginPath(); ctx.moveTo(x, y+r*ch); ctx.lineTo(x+w, y+r*ch); ctx.stroke(); }
+  for (let c=0; c<=28; c++) { ctx.beginPath(); ctx.moveTo(x+c*cw, y); ctx.lineTo(x+c*cw, y+h); ctx.stroke(); }
+}
+
+function glowRect(ctx, x, y, w, h, col, blur=14) {
+  ctx.save();
+  ctx.shadowColor = col; ctx.shadowBlur = blur;
+  ctx.strokeStyle = col; ctx.lineWidth = 2;
+  ctx.strokeRect(x, y, w, h);
+  ctx.fillStyle = col + '18'; ctx.fillRect(x, y, w, h);
+  ctx.restore();
+}
+
+function drawBeam(ctx, x1, y1, x2, y2, col, alpha=0.4) {
+  ctx.save();
+  ctx.strokeStyle = col + Math.round(alpha*255).toString(16).padStart(2,'0');
+  ctx.lineWidth = 1;
+  ctx.setLineDash([4, 4]);
+  ctx.beginPath(); ctx.moveTo(x1, y1); ctx.lineTo(x2, y2); ctx.stroke();
+  ctx.setLineDash([]);
+  ctx.restore();
+}
+
+function drawGlowDot(ctx, x, y, r, col) {
+  const g = ctx.createRadialGradient(x, y, 0, x, y, r);
+  g.addColorStop(0, col + 'ff'); g.addColorStop(1, col + '00');
+  ctx.fillStyle = g; ctx.beginPath(); ctx.arc(x, y, r, 0, Math.PI*2); ctx.fill();
+}
+
+function labelBlock(ctx, x, y, w, h, text, col, small=false) {
+  ctx.fillStyle = col;
+  ctx.font = (small ? '9' : '11') + 'px IBM Plex Sans Arabic';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+  ctx.fillText(text, x + w/2, y + h + 6);
+}
+
+/* ─────────────────────────────────────
+   9. SCENE RENDERERS
+───────────────────────────────────── */
+function drawBg(ctx, w, h) {
+  ctx.fillStyle = '#03060f'; ctx.fillRect(0, 0, w, h);
+  ctx.strokeStyle = 'rgba(26,45,72,0.25)'; ctx.lineWidth = 0.5;
+  const gs = 32;
+  for (let x = 0; x < w; x += gs) { ctx.beginPath(); ctx.moveTo(x,0); ctx.lineTo(x,h); ctx.stroke(); }
+  for (let y = 0; y < h; y += gs) { ctx.beginPath(); ctx.moveTo(0,y); ctx.lineTo(w,y); ctx.stroke(); }
+}
+
+// Scene 0: Input pixel grid
+function sceneInput(ctx, w, h, p, data, sv) {
+  if (!data) return;
+  const sz = Math.min(w * 0.55, h * 0.72);
+  const ox = (w - sz) / 2, oy = (h - sz) / 2 - 10;
+  drawInputGrid(ctx, ox, oy, sz, sz, data.input, sv);
+
+  // Scan line
+  const scanRow = Math.floor((p * 1.5 % 1) * 28);
+  const ch = sz / 28;
+  ctx.fillStyle = 'rgba(0,229,255,0.12)';
+  ctx.fillRect(ox, oy + scanRow * ch, sz, ch);
+
+  // Labels
+  ctx.save();
+  ctx.fillStyle = '#00e5ff'; ctx.font = '700 13px IBM Plex Sans Arabic';
+  ctx.textAlign = 'center'; ctx.fillText('مصفوفة الإدخال — 28×28 بكسل', w/2, oy - 16);
+  ctx.restore();
+
+  // Pixel value spotlight
+  const spotCol = Math.floor((p * 0.7 % 1) * 28), spotRow = Math.floor((p * 0.5 % 1) * 28);
+  const cw = sz / 28;
+  const sx = ox + spotCol * cw, sy = oy + spotRow * cw;
+  glowRect(ctx, sx, sy, cw, cw, '#00e5ff', 12);
+  const v = data.input[spotRow * 28 + spotCol];
+  ctx.fillStyle = '#fff'; ctx.font = 'bold 11px JetBrains Mono';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+  ctx.fillText(`${Math.round(v*255)}`, sx + cw/2, sy - 3);
+}
+
+// Scene 1 & 3: Convolution animation
+function sceneConv(ctx, w, h, p, data, sv, isSecond) {
+  if (!data) return;
+  const f = S.selFilter % (isSecond ? 16 : 8);
+  const inputData  = isSecond ? data.pool1 : data.input;
+  const outputData = isSecond ? data.conv2  : data.conv1;
+  const inH = isSecond ? 12 : 28, inW = isSecond ? 12 : 28, inC = isSecond ? 8 : 1;
+  const outH = isSecond ? 8 : 24, outW = isSecond ? 8 : 24, outC = isSecond ? 16 : 8;
+
+  const margin = 24;
+  const availW = w - margin * 2;
+  const gridSz = Math.min(h * 0.68, availW * 0.38);
+  const outSz  = gridSz * (outH / inH);
+  const gap = (availW - gridSz - outSz) / 3;
+
+  const inX = margin + gap, inY = (h - gridSz) / 2;
+  const outX = inX + gridSz + gap * 2, outY = (h - outSz) / 2;
+
+  // Draw input
+  if (isSecond) {
+    // Show feature map from pool1
+    drawGrid(ctx, inX, inY, gridSz, gridSz, inputData, inH, inW, inC, Math.min(S.selFilter, inC-1), sv);
+  } else {
+    drawInputGrid(ctx, inX, inY, gridSz, gridSz, inputData, false);
+  }
+  glowRect(ctx, inX - 1, inY - 1, gridSz + 2, gridSz + 2, isSecond ? '#ec4899' : '#a855f7', 6);
+
+  // Sliding kernel position
+  const totalPos = outH * outW;
+  const curPos = Math.min(Math.floor(p * totalPos), totalPos - 1);
+  const kRow = Math.floor(curPos / outW), kCol = curPos % outW;
+
+  // Draw kernel on input
+  const inCell = gridSz / inH;
+  const kx = inX + kCol * inCell, ky = inY + kRow * inCell;
+  const ks = 5 * inCell;
+  const kCol2 = isSecond ? '#ec4899' : '#a855f7';
+  glowRect(ctx, kx, ky, ks, ks, kCol2, 16);
+
+  // Draw kernel values (5x5 mini-grid) in center
+  const kernCenter = inX + gridSz + gap;
+  const kcSize = Math.min(gap - 10, 70);
+  if (gap > 40) {
+    const kData = isSecond ? CNN.conv2K : CNN.conv1K;
+    const kOff  = f * 25 * (isSecond ? 8 : 1);
+    let mn = Infinity, mx = -Infinity;
+    for (let i = 0; i < 25; i++) { const v = kData[kOff + i]; if (v < mn) mn = v; if (v > mx) mx = v; }
+    const rng = mx - mn || 1;
+    const kcX = kernCenter - kcSize/2, kcY = (h - kcSize)/2;
+    const kcs = kcSize / 5;
+    for (let r=0;r<5;r++) for (let c=0;c<5;c++) {
+      const v = (kData[kOff + r*5+c] - mn) / rng;
+      ctx.fillStyle = v > 0.5 ? `rgba(168,85,247,${(v-0.5)*2})` : `rgba(0,229,255,${(0.5-v)*2})`;
+      ctx.fillRect(kcX + c*kcs + .5, kcY + r*kcs + .5, kcs - 1, kcs - 1);
+    }
+    ctx.strokeStyle = kCol2 + '66'; ctx.lineWidth = 1;
+    ctx.strokeRect(kcX, kcY, kcSize, kcSize);
+    ctx.fillStyle = kCol2; ctx.font = '9px IBM Plex Sans Arabic';
+    ctx.textAlign = 'center'; ctx.fillText(`فلتر ${f+1}`, kernCenter, kcY - 8);
+  }
+
+  // Beam from kernel center to output
+  const inCX = kx + ks/2, inCY = ky + ks/2;
+  const outCell = outSz / outW;
+  const outCX = outX + kCol * outCell + outCell/2;
+  const outCY = outY + kRow * outCell + outCell/2;
+  drawBeam(ctx, inCX, inCY, outCX, outCY, kCol2, 0.5);
+  drawGlowDot(ctx, outCX, outCY, 6, kCol2);
+
+  // Draw partial feature map (built up to curPos)
+  drawGrid(ctx, outX, outY, outSz, outSz, outputData, outH, outW, outC, f, sv, curPos);
+  glowRect(ctx, outX - 1, outY - 1, outSz + 2, outSz + 2, kCol2, 6);
+
+  // ReLU indicator
+  if (p > 0.6) {
+    const rx = outX + outSz/2 - 36, ry = outY + outSz + 12;
+    ctx.fillStyle = '#10b981'; ctx.font = '700 11px JetBrains Mono';
+    ctx.textAlign = 'center';
+    ctx.fillText('ReLU: max(0, x)', rx + 36, ry);
+  }
+
+  // Labels
+  ctx.fillStyle = isSecond ? '#ec4899' : '#a855f7';
+  ctx.font = '11px IBM Plex Sans Arabic';
+  ctx.textAlign = 'center';
+  ctx.fillText(isSecond ? `خريطة ميزات Pool₁` : `الإدخال 28×28`, inX + gridSz/2, inY - 10);
+  ctx.fillText(isSecond ? `خريطة Conv₂ (فلتر ${f+1})` : `خريطة Conv₁ (فلتر ${f+1})`, outX + outSz/2, outY - 10);
+}
+
+// Scene 2 & 4: MaxPool animation
+function scenePool(ctx, w, h, p, data, sv, isSecond) {
+  if (!data) return;
+  const inputData  = isSecond ? data.conv2  : data.conv1;
+  const outputData = isSecond ? data.pool2  : data.pool1;
+  const inH  = isSecond ? 8 : 24, inW  = isSecond ? 8 : 24, inC = isSecond ? 16 : 8;
+  const outH = isSecond ? 4 : 12, outW = isSecond ? 4 : 12;
+  const f = S.selFilter % inC;
+  const col = isSecond ? '#22d3ee' : '#f97316';
+
+  const margin = 24;
+  const availW = w - margin * 2;
+  const inSz  = Math.min(h * 0.65, availW * 0.42);
+  const outSz = inSz * (outH / inH);
+  const gap   = (availW - inSz - outSz) / 3;
+  const inX   = margin + gap, inY = (h - inSz) / 2;
+  const outX  = inX + inSz + gap * 2, outY = (h - outSz) / 2;
+
+  // Draw input feature map
+  drawGrid(ctx, inX, inY, inSz, inSz, inputData, inH, inW, inC, f, sv);
+  glowRect(ctx, inX - 1, inY - 1, inSz + 2, inSz + 2, col, 6);
+
+  // Pool window position
+  const totalPos = outH * outW;
+  const curPos = Math.min(Math.floor(p * totalPos), totalPos - 1);
+  const pRow = Math.floor(curPos / outW), pCol = curPos % outW;
+
+  // Highlight 2x2 block in input
+  const inCell = inSz / inH;
+  const wx = inX + pCol * inCell * 2, wy = inY + pRow * inCell * 2;
+  const ws = inCell * 2;
+
+  // 4 cells with the max highlighted
+  const slice = inputData;
+  let maxV = -Infinity, maxR = 0, maxC = 0;
+  for (let dr=0;dr<2;dr++) for (let dc=0;dc<2;dc++) {
+    const v = slice[(pRow*2+dr)*inW*inC+(pCol*2+dc)*inC+f];
+    if (v > maxV) { maxV = v; maxR = dr; maxC = dc; }
+  }
+  for (let dr=0;dr<2;dr++) for (let dc=0;dc<2;dc++) {
+    const isMax = dr===maxR && dc===maxC;
+    ctx.fillStyle = isMax ? col + '55' : col + '18';
+    ctx.strokeStyle = isMax ? col : col + '55';
+    ctx.lineWidth = isMax ? 2 : 0.5;
+    const cx = wx + dc*inCell, cy = wy + dr*inCell;
+    ctx.fillRect(cx, cy, inCell, inCell);
+    ctx.strokeRect(cx, cy, inCell, inCell);
+  }
+
+  // Beam to output
+  const outCell = outSz / outW;
+  const outCX = outX + pCol * outCell + outCell/2;
+  const outCY = outY + pRow * outCell + outCell/2;
+  drawBeam(ctx, wx + ws/2, wy + ws/2, outCX, outCY, col, 0.6);
+  drawGlowDot(ctx, outCX, outCY, 7, col);
+
+  // Draw output (partial)
+  drawGrid(ctx, outX, outY, outSz, outSz, outputData, outH, outW, inC, f, sv, curPos);
+  glowRect(ctx, outX - 1, outY - 1, outSz + 2, outSz + 2, col, 6);
+
+  // Labels
+  ctx.fillStyle = col; ctx.font = '11px IBM Plex Sans Arabic'; ctx.textAlign = 'center';
+  ctx.fillText(`${inH}×${inW} قبل التجميع`, inX + inSz/2, inY - 10);
+  ctx.fillText(`${outH}×${outW} بعد MaxPool`, outX + outSz/2, outY - 10);
+
+  // Pool label center
+  ctx.fillStyle = col + '88'; ctx.font = '700 11px JetBrains Mono';
+  ctx.fillText('max(2×2)', inX + inSz + gap, h/2);
+}
+
+// Scene 5: Flatten
+function sceneFlatten(ctx, w, h, p, data, sv) {
+  if (!data) return;
+  const cols = 16, rows = 16; // 4×4×16 = 256 values shown as 16×16
+  const norm = normalizeArr(data.flatten);
+  const col = '#eab308';
+
+  // Left: 3D-ish feature maps
+  const sz = Math.min(h * 0.55, w * 0.22);
+  const stackN = 5;
+  const lx = w * 0.18;
+  for (let s = stackN-1; s >= 0; s--) {
+    const ox = lx + s*4, oy = (h - sz)/2 - s*3;
+    drawGrid(ctx, ox, oy, sz, sz, data.pool2, 4, 4, 16, s*3, false);
+    glowRect(ctx, ox-1, oy-1, sz+2, sz+2, col, 4);
+  }
+
+  // Animated particles flying from left to right
+  const vecH = Math.min(h * 0.72, 300);
+  const vecX = w * 0.72, vecY = (h - vecH) / 2;
+  const cellH = vecH / 256;
+
+  // Draw vector
+  for (let i = 0; i < 256; i++) {
+    const v = norm[i];
+    const py = vecY + i * cellH;
+    const alpha = i / 256 < p ? 1 : 0.1;
+    ctx.fillStyle = alpha > 0.5 ? cyanMap(v) : '#1a2d4844';
+    ctx.fillRect(vecX, py, 12, Math.max(cellH - 0.3, 0.5));
+  }
+  ctx.strokeStyle = col + '55'; ctx.lineWidth = 1;
+  ctx.strokeRect(vecX - 1, vecY - 1, 14, vecH + 2);
+
+  // Particles
+  const numP = 18;
+  for (let i = 0; i < numP; i++) {
+    const dp = ((p * 1.5 + i/numP) % 1);
+    const startY = (h - sz) / 2 + ((i * 17) % 256) / 256 * sz + lx * 0;
+    const endY   = vecY + ((i * 17) % 256) * cellH;
+    const px = lx + sz + (vecX - lx - sz) * dp;
+    const py = startY + (endY - startY) * dp;
+    const alpha = Math.sin(dp * Math.PI);
+    ctx.fillStyle = `rgba(234,179,8,${alpha * 0.9})`;
+    ctx.beginPath(); ctx.arc(px, py, 3, 0, Math.PI*2); ctx.fill();
+  }
+
+  ctx.fillStyle = col; ctx.font = '11px IBM Plex Sans Arabic'; ctx.textAlign = 'center';
+  ctx.fillText('مصفوفات 4×4×16', lx + sz/2, (h - sz)/2 - 16);
+  ctx.fillText('متجه مُسطَّح (256 قيمة)', vecX + 6, vecY - 12, 120);
+}
+
+// Scene 6: Fully Connected + Softmax
+function sceneFC(ctx, w, h, p, data, sv) {
+  if (!data) return;
+  const col = '#a855f7';
+
+  const numIn = 12, numHid = 8, numOut = 10;
+  const margin = 60;
+  const x1 = margin + 20, x2 = w/2 - 20, x3 = w - margin;
+  const mkNodes = (x, n, h0) => Array.from({length: n}, (_, i) => ({
+    x, y: h0/2 + (i - n/2) * Math.min(h0/(n+1), 36)
+  }));
+
+  const N1 = mkNodes(x1, numIn, h);
+  const N2 = mkNodes(x2, numHid, h);
+  const N3 = mkNodes(x3, numOut, h);
+
+  // Draw FC weight lines
+  N1.forEach(a => N2.forEach(b => {
+    ctx.strokeStyle = 'rgba(168,85,247,0.05)'; ctx.lineWidth = 0.5;
+    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+  }));
+  N2.forEach(a => N3.forEach(b => {
+    ctx.strokeStyle = 'rgba(249,115,22,0.04)'; ctx.lineWidth = 0.5;
+    ctx.beginPath(); ctx.moveTo(a.x, a.y); ctx.lineTo(b.x, b.y); ctx.stroke();
+  }));
+
+  // Animated signals
+  const numSigs = 5;
+  for (let s = 0; s < numSigs; s++) {
+    const sp = ((p * 1.8 + s * 0.2) % 1);
+    const srcN = N1[s % numIn], dstN = N2[s % numHid];
+    const px = srcN.x + (dstN.x - srcN.x) * sp;
+    const py = srcN.y + (dstN.y - srcN.y) * sp;
+    const alpha = Math.sin(sp * Math.PI);
+    ctx.fillStyle = `rgba(168,85,247,${alpha * 0.9})`;
+    ctx.beginPath(); ctx.arc(px, py, 4, 0, Math.PI*2); ctx.fill();
+  }
+  if (p > 0.45) {
+    for (let s = 0; s < numSigs; s++) {
+      const sp = ((p * 1.8 - 0.45 + s * 0.2) % 1);
+      if (sp < 0) continue;
+      const srcN = N2[s % numHid], dstN = N3[s % numOut];
+      const px = srcN.x + (dstN.x - srcN.x) * sp;
+      const py = srcN.y + (dstN.y - srcN.y) * sp;
+      const alpha = Math.sin(Math.min(sp, 1) * Math.PI);
+      ctx.fillStyle = `rgba(249,115,22,${alpha * 0.9})`;
+      ctx.beginPath(); ctx.arc(px, py, 4, 0, Math.PI*2); ctx.fill();
+    }
+  }
+
+  // Draw nodes N1
+  N1.forEach((n, i) => {
+    const v = data.fc1 ? data.fc1[i % data.fc1.length] : 0.5;
+    const vn = Math.min(1, Math.max(0, v));
+    ctx.fillStyle = `rgba(168,85,247,${0.2 + vn * 0.7})`;
+    ctx.shadowColor = '#a855f7'; ctx.shadowBlur = 6;
+    ctx.beginPath(); ctx.arc(n.x, n.y, 7, 0, Math.PI*2); ctx.fill();
+    ctx.shadowBlur = 0;
+  });
+
+  // Draw nodes N2
+  N2.forEach(n => {
+    ctx.fillStyle = '#ec4899aa';
+    ctx.shadowColor = '#ec4899'; ctx.shadowBlur = 8;
+    ctx.beginPath(); ctx.arc(n.x, n.y, 7, 0, Math.PI*2); ctx.fill();
+    ctx.shadowBlur = 0;
+  });
+
+  // Draw output nodes N3 with probabilities
+  const probs = data.output;
+  let topI = 0;
+  for (let i=1;i<10;i++) if (probs[i] > probs[topI]) topI = i;
+  const revealP = Math.max(0, (p - 0.5) * 2);
+
+  N3.forEach((n, i) => {
+    const prob = probs ? probs[i] * revealP : 0;
+    const isTop = i === topI;
+    const r = Math.max(5, Math.min(13, 5 + prob * 18));
+    const col2 = isTop ? '#f97316' : '#f9731655';
+    if (isTop) { ctx.shadowColor = '#f97316'; ctx.shadowBlur = 14 + 6 * Math.sin(S.progress * 8); }
+    ctx.fillStyle = col2;
+    ctx.beginPath(); ctx.arc(n.x, n.y, r, 0, Math.PI*2); ctx.fill();
+    ctx.shadowBlur = 0;
+    // Label
+    ctx.fillStyle = isTop ? '#fff' : '#94a3b8';
+    ctx.font = (isTop ? 'bold ' : '') + '10px JetBrains Mono';
+    ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+    const pctStr = revealP > 0.3 ? ` ${(probs[i]*100).toFixed(0)}%` : '';
+    ctx.fillText(i + pctStr, n.x + r + 4, n.y);
+  });
+
+  // Labels
+  ctx.fillStyle = '#a855f7'; ctx.font = '10px IBM Plex Sans Arabic'; ctx.textAlign = 'center';
+  ctx.fillText('FC1 (64 عقدة)', x2, 20);
+  ctx.fillStyle = '#f97316';
+  ctx.fillText('Softmax خروج', x3 + 30, 20);
+}
+
+// Scene 7: Final result — Left: big digit | Right: probability bars
+function sceneResult(ctx, w, h, p, data) {
+  if (!data || !data.output) return;
+  const probs = data.output;
+  let topI = 0;
+  for (let i=1;i<10;i++) if (probs[i]>probs[topI]) topI=i;
+
+  const revealP = Math.min(1, p * 2);
+
+  /* ── Layout split ── */
+  const divX = Math.floor(w * 0.38); // divider between left (digit) and right (bars)
+
+  /* ══ LEFT SIDE: Big prediction number + label ══ */
+  const lCX = Math.floor(divX / 2);
+  const fontSize = Math.min(divX * 0.60, h * 0.42, 140) * revealP;
+
+  // Background circle behind digit
+  if (revealP > 0.1) {
+    const grd = ctx.createRadialGradient(lCX, h/2, 0, lCX, h/2, fontSize * 0.9);
+    grd.addColorStop(0, '#f9731618');
+    grd.addColorStop(1, 'transparent');
+    ctx.fillStyle = grd;
+    ctx.beginPath(); ctx.arc(lCX, h/2, fontSize * 0.9, 0, Math.PI*2); ctx.fill();
+  }
+
+  // Top label: "النتيجة"
+  if (revealP > 0.4) {
+    ctx.fillStyle = '#64748b'; ctx.font = '700 11px IBM Plex Sans Arabic';
+    ctx.textAlign = 'center'; ctx.textBaseline = 'bottom';
+    ctx.fillText('🎯 التنبؤ النهائي', lCX, h/2 - fontSize * 0.52 - 10);
+  }
+
+  // Big digit
+  if (fontSize > 12) {
+    ctx.save();
+    ctx.font = `900 ${Math.round(fontSize)}px JetBrains Mono`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+    ctx.fillStyle = '#f97316';
+    ctx.shadowColor = '#f97316'; ctx.shadowBlur = Math.round(40 * revealP);
+    ctx.fillText(String(topI), lCX, h / 2);
+    ctx.shadowBlur = 0;
+    ctx.restore();
+  }
+
+  // Confidence below digit
+  if (revealP > 0.6) {
+    const conf = (probs[topI] * 100).toFixed(1);
+    ctx.fillStyle = '#eab308';
+    ctx.font = `700 ${Math.min(15, Math.round(fontSize * 0.15))}px IBM Plex Sans Arabic`;
+    ctx.textAlign = 'center'; ctx.textBaseline = 'top';
+    ctx.fillText(`ثقة: ${conf}%`, lCX, h/2 + fontSize * 0.52 + 8);
+  }
+
+  /* ── Vertical divider ── */
+  if (revealP > 0.2) {
+    ctx.save();
+    const grad = ctx.createLinearGradient(divX, h*0.1, divX, h*0.9);
+    grad.addColorStop(0, 'transparent');
+    grad.addColorStop(0.5, '#1a2d4888');
+    grad.addColorStop(1, 'transparent');
+    ctx.strokeStyle = grad; ctx.lineWidth = 1;
+    ctx.setLineDash([5, 5]);
+    ctx.beginPath(); ctx.moveTo(divX, h * 0.1); ctx.lineTo(divX, h * 0.9); ctx.stroke();
+    ctx.setLineDash([]); ctx.restore();
+  }
+
+  /* ══ RIGHT SIDE: Probability bars ══ */
+  if (revealP > 0.25) {
+    const rPad = 16; // padding from right edge
+    const lPad = 20; // padding from divider
+    const rAreaX = divX + lPad;
+    const rAreaW = w - rAreaX - rPad;
+
+    const labelW = 16;   // width for digit label "0".."9"
+    const pctW   = 46;   // width for "83.5%" text
+    const trackW = Math.max(60, rAreaW - labelW - pctW - 12);
+
+    const barH   = Math.min(24, Math.floor((h * 0.78) / 10 - 5));
+    const gap    = Math.min(7,  Math.floor((h * 0.78 - 10 * barH) / 10));
+    const totalH = 10 * barH + 9 * gap;
+    const startY = Math.floor((h - totalH) / 2);
+
+    // Section title
+    if (revealP > 0.5) {
+      ctx.fillStyle = '#475569'; ctx.font = '11px IBM Plex Sans Arabic';
+      ctx.textAlign = 'right'; ctx.textBaseline = 'bottom';
+      ctx.fillText('احتمالية كل فئة', rAreaX + rAreaW, startY - 8);
+    }
+
+    probs.forEach((pr, i) => {
+      const isTop   = i === topI;
+      const animPr  = pr * revealP;
+      const barFill = animPr * trackW;
+      const tx      = rAreaX + labelW + 6; // start of track
+      const by      = startY + i * (barH + gap);
+
+      // Track BG
+      ctx.fillStyle = '#0b1a2e';
+      ctx.beginPath();
+      if (ctx.roundRect) ctx.roundRect(tx, by, trackW, barH, 3);
+      else ctx.rect(tx, by, trackW, barH);
+      ctx.fill();
+
+      // Fill bar
+      if (barFill > 0.5) {
+        ctx.fillStyle = isTop ? '#f97316' : '#00e5ff28';
+        if (isTop) { ctx.shadowColor = '#f97316'; ctx.shadowBlur = 10; }
+        ctx.beginPath();
+        if (ctx.roundRect) ctx.roundRect(tx, by, barFill, barH, 3);
+        else ctx.rect(tx, by, barFill, barH);
+        ctx.fill();
+        ctx.shadowBlur = 0;
+      }
+
+      // Digit label
+      const lblFontSz = Math.min(barH * 0.65, 12);
+      ctx.fillStyle = isTop ? '#f97316' : '#475569';
+      ctx.font = (isTop ? '700 ' : '') + `${Math.round(lblFontSz)}px JetBrains Mono`;
+      ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+      ctx.fillText(String(i), rAreaX + labelW / 2, by + barH / 2);
+
+      // Percentage label
+      const pctFontSz = Math.min(barH * 0.6, 11);
+      ctx.fillStyle = isTop ? '#fbbf24' : '#334155';
+      ctx.font = (isTop ? '700 ' : '') + `${Math.round(pctFontSz)}px JetBrains Mono`;
+      ctx.textAlign = 'left'; ctx.textBaseline = 'middle';
+      ctx.fillText(`${(pr * 100).toFixed(1)}%`, tx + trackW + 6, by + barH / 2);
+    });
+  }
+}
+
+/* ─────────────────────────────────────
+   10. MAIN RENDER LOOP
+───────────────────────────────────── */
+function render2D() {
+  if (!CV || !CTX || !W || !H) return;
+  drawBg(CTX, W, H);
+  const sv = S.showVals;
+  const p = S.progress;
+  const data = S.data;
+
+  switch (S.step) {
+    case 0: sceneInput(CTX, W, H, p, data, sv); break;
+    case 1: sceneConv(CTX, W, H, p, data, sv, false); break;
+    case 2: scenePool(CTX, W, H, p, data, sv, false); break;
+    case 3: sceneConv(CTX, W, H, p, data, sv, true); break;
+    case 4: scenePool(CTX, W, H, p, data, sv, true); break;
+    case 5: sceneFlatten(CTX, W, H, p, data, sv); break;
+    case 6: sceneFC(CTX, W, H, p, data, sv); break;
+    case 7: sceneResult(CTX, W, H, p, data); break;
+    default: drawIdleScreen(CTX, W, H); break;
+  }
+}
+
+function drawIdleScreen(ctx, w, h) {
+  // Animated network background
+  const t = Date.now() / 1000;
+  const pts = idleNodes;
+  pts.forEach(n => {
+    n.x += n.vx; n.y += n.vy;
+    if (n.x < 0) n.x = w; if (n.x > w) n.x = 0;
+    if (n.y < 0) n.y = h; if (n.y > h) n.y = 0;
+    const pulse = 0.5 + 0.5 * Math.sin(t * 1.5 + n.phase);
+    ctx.fillStyle = n.col === 'c' ? `rgba(0,229,255,${0.3+0.5*pulse})` : `rgba(168,85,247,${0.3+0.5*pulse})`;
+    ctx.beginPath(); ctx.arc(n.x, n.y, n.r * (0.8+0.4*pulse), 0, Math.PI*2); ctx.fill();
+  });
+  for (let i = 0; i < pts.length; i++) {
+    for (let j = i+1; j < pts.length; j++) {
+      const dx = pts[i].x - pts[j].x, dy = pts[i].y - pts[j].y;
+      const d = Math.sqrt(dx*dx + dy*dy);
+      if (d < 120) {
+        ctx.strokeStyle = `rgba(0,229,255,${(1-d/120)*0.1})`; ctx.lineWidth = 0.5;
+        ctx.beginPath(); ctx.moveTo(pts[i].x, pts[i].y); ctx.lineTo(pts[j].x, pts[j].y); ctx.stroke();
+      }
+    }
+  }
+
+  ctx.fillStyle = 'rgba(0,229,255,0.5)';
+  ctx.font = '700 18px IBM Plex Sans Arabic';
+  ctx.textAlign = 'center'; ctx.textBaseline = 'middle';
+  ctx.fillText('اختر رقماً من اليسار واضغط ▶ للبدء', w/2, h/2);
+}
+
+const idleNodes = Array.from({length:25}, () => ({
+  x: Math.random()*800, y: Math.random()*500,
+  vx: (Math.random()-.5)*.3, vy: (Math.random()-.5)*.3,
+  r: 1.5 + Math.random()*2, col: Math.random()<.5?'c':'p', phase: Math.random()*Math.PI*2
+}));
+
+/* ─────────────────────────────────────
+   11. 3D RENDERER (Canvas 2D perspective projection)
+───────────────────────────────────── */
+const LAYERS_3D = [
+  {name:'Input',   color:'#00e5ff', x:-11, w:0.6, h:3.5, d:0.4, stacks:1 },
+  {name:'Conv₁',   color:'#a855f7', x:-8,  w:0.5, h:4.2, d:0.5, stacks:4 },
+  {name:'Pool₁',   color:'#f97316', x:-5,  w:0.5, h:3.2, d:0.5, stacks:4 },
+  {name:'Conv₂',   color:'#ec4899', x:-2,  w:0.4, h:3.8, d:0.5, stacks:5 },
+  {name:'Pool₂',   color:'#22d3ee', x: 1,  w:0.4, h:2.6, d:0.5, stacks:5 },
+  {name:'Flatten', color:'#eab308', x: 4,  w:0.2, h:5.5, d:0.2, stacks:1 },
+  {name:'FC',      color:'#a855f7', x: 7,  w:0.35,h:3.8, d:0.35,stacks:1 },
+  {name:'Output',  color:'#f97316', x:10,  w:0.4, h:2,   d:0.4, stacks:1 },
+];
+
+function project3D(px, py, pz, rx, ry) {
+  // Rotate Y
+  const cy = Math.cos(ry), sy = Math.sin(ry);
+  const x1 = px*cy + pz*sy;
+  const z1 = -px*sy + pz*cy;
+  // Rotate X
+  const cx_ = Math.cos(rx), sx = Math.sin(rx);
+  const y1 = py*cx_ - z1*sx;
+  const z2 = py*sx + z1*cx_;
+  // Perspective
+  const f = 8;
+  const d = f / (f + z2 + 3);
+  return { sx: x1 * d * 60, sy: y1 * d * 60, d, z: z2 };
+}
+
+function drawBox3D(ctx, cx, cy, x, y, z, w, h, d, color, alpha, glow, active) {
+  const corners = [
+    [x,   y,   z  ], [x+w, y,   z  ], [x+w, y+h, z  ], [x,   y+h, z  ],
+    [x,   y,   z+d], [x+w, y,   z+d], [x+w, y+h, z+d], [x,   y+h, z+d],
+  ];
+  const proj = corners.map(([px,py,pz]) => {
+    const p = project3D(px, py, pz, S.rot3d.x, S.rot3d.y);
+    return {x: cx + p.sx, y: cy + p.sy, z: p.z};
+  });
+
+  const faces = [
+    [0,1,2,3], // front
+    [4,5,6,7], // back
+    [0,1,5,4], // top
+    [3,2,6,7], // bottom
+    [0,3,7,4], // left
+    [1,2,6,5], // right
+  ];
+  const brightness = [0.9, 0.3, 0.7, 0.4, 0.5, 0.8];
+
+  // Sort faces by average Z (painter's algorithm)
+  const faceData = faces.map((f, fi) => ({
+    f, fi,
+    z: f.reduce((s, i) => s + proj[i].z, 0) / f.length
+  })).sort((a,b) => a.z - b.z);
+
+  faceData.forEach(({f, fi}) => {
+    ctx.beginPath();
+    ctx.moveTo(proj[f[0]].x, proj[f[0]].y);
+    for (let k=1;k<f.length;k++) ctx.lineTo(proj[f[k]].x, proj[f[k]].y);
+    ctx.closePath();
+
+    const br = brightness[fi];
+    const a = alpha * br;
+    ctx.fillStyle = color + Math.round(a * 255).toString(16).padStart(2,'0');
+    ctx.fill();
+
+    if (active || glow > 0) {
+      ctx.shadowColor = color; ctx.shadowBlur = glow;
+    }
+    ctx.strokeStyle = color + Math.round(Math.min(1, alpha * 1.5) * 200).toString(16).padStart(2,'0');
+    ctx.lineWidth = active ? 1.5 : 0.7;
+    ctx.stroke();
+    ctx.shadowBlur = 0;
+  });
+}
+
+function render3D() {
+  if (!CTX3 || !W3 || !H3) return;
+  CTX3.fillStyle = '#03060f'; CTX3.fillRect(0, 0, W3, H3);
+
+  // Grid
+  CTX3.strokeStyle = 'rgba(26,45,72,0.3)'; CTX3.lineWidth = 0.5;
+  const gs = 30;
+  for (let x=0;x<W3;x+=gs){CTX3.beginPath();CTX3.moveTo(x,0);CTX3.lineTo(x,H3);CTX3.stroke();}
+  for (let y=0;y<H3;y+=gs){CTX3.beginPath();CTX3.moveTo(0,y);CTX3.lineTo(W3,y);CTX3.stroke();}
+
+  const cx = W3/2, cy = H3/2;
+
+  // Draw connections between layers
+  LAYERS_3D.forEach((la, i) => {
+    if (i >= LAYERS_3D.length-1) return;
+    const lb = LAYERS_3D[i+1];
+    const isAct = i < S.step;
+    const a = project3D(la.x + la.w, 0, 0, S.rot3d.x, S.rot3d.y);
+    const b = project3D(lb.x, 0, 0, S.rot3d.x, S.rot3d.y);
+    CTX3.strokeStyle = isAct ? la.color + '77' : '#1a2d4455';
+    CTX3.lineWidth = isAct ? 1.5 : 0.5;
+    if (isAct) { CTX3.shadowColor = la.color; CTX3.shadowBlur = 5; }
+    CTX3.beginPath();
+    CTX3.moveTo(cx + a.sx, cy + a.sy);
+    CTX3.lineTo(cx + b.sx, cy + b.sy);
+    CTX3.stroke();
+    CTX3.shadowBlur = 0;
+
+    // Moving light pulse on active connections
+    if (i === S.step - 1) {
+      const pp = (S.progress * 1.8) % 1;
+      const px = (cx + a.sx) + ((cx + b.sx) - (cx + a.sx)) * pp;
+      const py = (cy + a.sy) + ((cy + b.sy) - (cy + a.sy)) * pp;
+      drawGlowDot(CTX3, px, py, 6, la.color);
+    }
+  });
+
+  // Draw layer boxes (back to front)
+  const sortedLayers = LAYERS_3D.map((la, i) => {
+    const p = project3D(la.x + la.w/2, 0, la.d/2, S.rot3d.x, S.rot3d.y);
+    return {la, i, z: p.z};
+  }).sort((a,b) => a.z - b.z);
+
+  sortedLayers.forEach(({la, i}) => {
+    const active = i <= S.step;
+    const current = i === S.step;
+    const glow = current ? 18 + 8 * Math.sin(Date.now()*.003) : (active ? 5 : 0);
+    const alpha = active ? 0.7 : 0.15;
+
+    const stacks = Math.min(la.stacks, 5);
+    for (let s = stacks-1; s >= 0; s--) {
+      const oz = s * (la.d + 0.15) - stacks*(la.d+0.15)/2;
+      drawBox3D(CTX3, cx, cy, la.x - la.w/2, -la.h/2, oz,
+        la.w, la.h, la.d, la.color, alpha * (1 - s*0.1), glow * (1 - s*0.1), current);
+    }
+
+    // Layer label
+    const lp = project3D(la.x, la.h/2 + 0.3, 0, S.rot3d.x, S.rot3d.y);
+    CTX3.fillStyle = current ? la.color : (active ? la.color+'88' : '#33475b');
+    CTX3.font = current ? 'bold 11px IBM Plex Sans Arabic' : '10px IBM Plex Sans Arabic';
+    CTX3.textAlign = 'center'; CTX3.textBaseline = 'top';
+    if (current) { CTX3.shadowColor = la.color; CTX3.shadowBlur = 8; }
+    CTX3.fillText(la.name, cx + lp.sx, cy + lp.sy);
+    CTX3.shadowBlur = 0;
+  });
+}
+
+/* ─────────────────────────────────────
+   12. ANIMATION LOOP
+───────────────────────────────────── */
+function loop(ts) {
+  requestAnimationFrame(loop);
+  const dt = ts - S.lastTs;
+  S.lastTs = ts;
+
+  // Idle node drift
+  idleNodes.forEach(n => {
+    n.x += n.vx; n.y += n.vy;
+    if (W) { if (n.x < 0) n.x = W; if (n.x > W) n.x = 0; if (n.y < 0) n.y = H; if (n.y > H) n.y = 0; }
+  });
+
+  // Auto-rotate 3D when not dragging
+  if (!S.drag3d && S.view === '3d') {
+    S.rot3d.y += 0.005 * (S.playing ? 1 : 0.3);
+  }
+
+  // Advance progress
+  if (S.playing && S.step >= 0) {
+    S.progress += (dt / S.stepDuration) * S.speed;
+    if (S.progress >= 1) {
+      S.progress = 0;
+      if (S.step < 7) {
+        S.step++;
+        updateUI();
+        checkQuiz();
+      } else {
+        S.playing = false;
+        updatePlayBtn();
+        S.progress = 1;
+      }
+    }
+  }
+
+  if (S.view === '2d') render2D();
+  else render3D();
+}
+
+/* ─────────────────────────────────────
+   13. UI BUILDING
+───────────────────────────────────── */
+const STEP_LABELS = ['الإدخال','Conv₁+ReLU','MaxPool₁','Conv₂+ReLU','MaxPool₂','Flatten','FC+Softmax','النتيجة'];
+const STEP_COLORS = ['#00e5ff','#a855f7','#f97316','#ec4899','#22d3ee','#eab308','#a855f7','#f97316'];
+
+function buildPipeline() {
+  const pp = document.getElementById('pipeline');
+  pp.innerHTML = '';
+  STEP_LABELS.forEach((lbl, i) => {
+    if (i > 0) { const arr = document.createElement('span'); arr.className='pp-arrow'; arr.textContent='›'; pp.appendChild(arr); }
+    const el = document.createElement('div');
+    el.className = 'pp-item';
+    el.id = `pp-${i}`;
+    el.textContent = lbl;
+    el.style.setProperty('--step-c', STEP_COLORS[i]);
+    el.addEventListener('click', () => { pausePlay(); gotoStep(i); });
+    pp.appendChild(el);
+  });
+}
+
+function buildDigitGrid() {
+  const g = document.getElementById('digit-grid');
+  g.innerHTML = '';
+  DIGITS.forEach(({digit, pixels}) => {
+    const btn = document.createElement('div');
+    btn.className = 'digit-btn' + (digit === S.digit ? ' sel' : '');
+    btn.id = `dbtn-${digit}`;
+    const c = document.createElement('canvas');
+    c.width = 28; c.height = 28;
+    const x = c.getContext('2d');
+    const id = x.createImageData(28,28);
+    for (let i=0;i<784;i++){const v=Math.round(pixels[i]*255);id.data[i*4]=v;id.data[i*4+1]=v;id.data[i*4+2]=v;id.data[i*4+3]=255;}
+    x.putImageData(id,0,0);
+    const lbl = document.createElement('span'); lbl.className='dlbl'; lbl.textContent=digit;
+    btn.appendChild(c); btn.appendChild(lbl);
+    btn.addEventListener('click', () => selectDigit(digit));
+    g.appendChild(btn);
+  });
+}
+
+function buildFilterGrid() {
+  const g = document.getElementById('filter-grid');
+  g.innerHTML = '';
+  for (let f = 0; f < 8; f++) {
+    const c = document.createElement('canvas');
+    c.width = 5; c.height = 5;
+    c.className = 'fchip' + (f === S.selFilter ? ' sel' : '');
+    c.title = `فلتر ${f+1}`;
+    const x = c.getContext('2d');
+    const id = x.createImageData(5,5);
+    let mn = Infinity, mx = -Infinity;
+    for (let i=0;i<25;i++){const v=CNN.conv1K[f*25+i];if(v<mn)mn=v;if(v>mx)mx=v;}
+    const rng = mx - mn || 1;
+    for (let i=0;i<25;i++){
+      const v=(CNN.conv1K[f*25+i]-mn)/rng;
+      id.data[i*4]=Math.round(v<.5?(0.5-v)*2*168:0);
+      id.data[i*4+1]=Math.round(v*80);
+      id.data[i*4+2]=Math.round(v>.5?(v-.5)*2*255:(0.5-v)*2*112);
+      id.data[i*4+3]=255;
+    }
+    x.putImageData(id,0,0);
+    c.addEventListener('click', () => {
+      document.querySelectorAll('.fchip').forEach(ch=>ch.classList.remove('sel'));
+      c.classList.add('sel');
+      S.selFilter = f;
+    });
+    g.appendChild(c);
+  }
+}
+
+function updateUI() {
+  // Pipeline
+  document.querySelectorAll('.pp-item').forEach((el, i) => {
+    el.classList.remove('active','done');
+    if (i === S.step) el.classList.add('active');
+    else if (i < S.step) el.classList.add('done');
+  });
+
+  // Step badge
+  const badge = document.getElementById('step-badge');
+  if (S.step >= 0) {
+    badge.style.opacity = 0;
+    setTimeout(() => {
+      badge.textContent = STEPS[S.step].title;
+      badge.style.opacity = 1;
+      badge.style.transition = 'opacity .3s';
+    }, 200);
+  }
+
+  // Step counter
+  document.getElementById('step-counter').textContent = S.step >= 0 ? `${S.step+1}/8` : '—';
+
+  // Right panel explanation
+  updateExplain();
+
+  // Filter section visibility
+  if (S.step === 1 || S.step === 3) {
+    document.getElementById('filter-sec').style.display = 'block';
+    buildFilterGrid();
+  }
+
+  // Output bars for last 2 steps
+  if (S.step >= 6 && S.data && S.data.output) {
+    showOutputBars(S.data.output);
+  }
+}
+
+function updateExplain() {
+  const panel = document.getElementById('explain-panel');
+  if (S.step < 0) return;
+  const info = STEPS[S.step];
+  const statsHtml = info.stats.map(s =>
+    `<tr><td>${s.k}</td><td class="${s.c ? 'td-'+s.c : ''}">${s.v}</td></tr>`
+  ).join('');
+
+  panel.innerHTML = `
+    <div class="step-card" style="--step-c:${info.color}">
+      <div class="step-head">
+        <div class="step-num-badge">${S.step+1}</div>
+        <div class="step-title-txt">${info.title}</div>
+      </div>
+      <p class="step-desc">${info.desc}</p>
+      <div class="math-box">${info.math.replace(/\n/g,'<br>')}</div>
+      ${statsHtml ? `<table class="stats-table"><tbody>${statsHtml}</tbody></table>` : ''}
+    </div>`;
+}
+
+function showOutputBars(probs) {
+  const ob = document.getElementById('output-bars');
+  ob.innerHTML = '';
+  let topI = 0;
+  for (let i=1;i<10;i++) if (probs[i]>probs[topI]) topI = i;
+
+  probs.forEach((p, i) => {
+    const pct = (p*100).toFixed(1);
+    const isTop = i === topI;
+    const row = document.createElement('div');
+    row.className = 'out-row' + (isTop ? ' hi' : '');
+    row.innerHTML = `
+      <span class="out-lbl">${i}</span>
+      <div class="out-track"><div class="out-fill${isTop?' top':''}" style="width:${pct}%"></div></div>
+      <span class="out-pct">${pct}%</span>`;
+    ob.appendChild(row);
+  });
+
+  const card = document.getElementById('pred-card');
+  card.innerHTML = `
+    <div class="pred-card">
+      <div class="pred-digit">${topI}</div>
+      <div class="pred-conf">التنبؤ: <strong style="color:#fff">${topI}</strong> | ثقة: <span>${(probs[topI]*100).toFixed(1)}%</span></div>
+    </div>`;
+  document.getElementById('output-sec').style.display = 'block';
+}
+
+/* ─────────────────────────────────────
+   14. STEP CONTROL
+───────────────────────────────────── */
+function selectDigit(d) {
+  S.digit = d;
+  document.querySelectorAll('.digit-btn').forEach(b => b.classList.remove('sel'));
+  const btn = document.getElementById(`dbtn-${d}`);
+  if (btn) btn.classList.add('sel');
+  S.data = CNN.forward(DIGITS[d].pixels, d);
+  resetAndPlay();
+}
+
+function resetAndPlay() {
+  resetAll();
+  startPlay();
+}
+
+function gotoStep(s) {
+  if (!S.data) S.data = CNN.forward(DIGITS[S.digit].pixels, S.digit);
+  S.step = s;
+  S.progress = 0;
+  updateUI();
+}
+
+function startPlay() {
+  if (!S.data) S.data = CNN.forward(DIGITS[S.digit].pixels, S.digit);
+  if (S.step < 0 || S.step >= 7) { S.step = 0; S.progress = 0; }
+  S.playing = true;
+  updatePlayBtn();
+}
+
+function pausePlay() {
+  S.playing = false;
+  updatePlayBtn();
+}
+
+function togglePlay() {
+  if (S.playing) pausePlay();
+  else startPlay();
+}
+
+function resetAll() {
+  S.step = -1;
+  S.progress = 0;
+  S.playing = false;
+  updatePlayBtn();
+  updateUI();
+  document.getElementById('output-sec').style.display = 'none';
+  document.getElementById('filter-sec').style.display = 'none';
+  document.getElementById('step-badge').textContent = 'اختر رقماً وابدأ التشغيل ←';
+  document.getElementById('explain-panel').innerHTML = `
+    <div style="text-align:center;padding:20px 0">
+      <div style="font-size:2.2rem;margin-bottom:12px">🧠</div>
+      <h3 style="font-size:.9rem;margin-bottom:8px">جاهز للبدء</h3>
+      <p style="font-size:.8rem;color:var(--muted);line-height:1.7">اضغط <strong>▶</strong> لمشاهدة الشبكة تعمل.</p>
+    </div>`;
+  document.getElementById('step-counter').textContent = '—';
+  document.querySelectorAll('.pp-item').forEach(el => el.classList.remove('active','done'));
+}
+
+function updatePlayBtn() {
+  const btn = document.getElementById('btn-play');
+  btn.textContent = S.playing ? '⏸' : '▶';
+  btn.classList.toggle('paused', S.playing);
+}
+
+/* ─────────────────────────────────────
+   15. QUIZ SYSTEM
+───────────────────────────────────── */
+function checkQuiz() {
+  if (!S.quizActive) return;
+  const q = QUIZ.find(q => q.step === S.step);
+  if (q) showQuiz(q);
+}
+
+function showQuiz(q) {
+  pausePlay();
+  const wrap = document.getElementById('viz-wrap');
+  let overlay = document.createElement('div');
+  overlay.className = 'quiz-overlay';
+  overlay.innerHTML = `
+    <div class="quiz-card">
+      <h3>❓ سؤال تفاعلي</h3>
+      <p>${q.q}</p>
+      <div class="quiz-opts">
+        ${q.opts.map((o,i) => `<button class="qopt" data-idx="${i}">${o}</button>`).join('')}
+      </div>
+      <div class="quiz-feedback" id="qfb">${q.explain}</div>
+      <button id="qnext" style="display:none;margin-top:14px;padding:8px 20px;border-radius:8px;background:var(--cyan);color:#000;border:none;cursor:pointer;font-family:var(--font);font-weight:700">متابعة ←</button>
+    </div>`;
+  wrap.appendChild(overlay);
+
+  overlay.querySelectorAll('.qopt').forEach(btn => {
+    btn.addEventListener('click', () => {
+      const idx = parseInt(btn.dataset.idx);
+      overlay.querySelectorAll('.qopt').forEach((b, i) => {
+        b.classList.toggle('correct', i === q.correct);
+        b.classList.toggle('wrong', i === idx && i !== q.correct);
+      });
+      document.getElementById('qfb').style.display = 'block';
+      document.getElementById('qnext').style.display = 'inline-block';
+    });
+  });
+  document.getElementById('qnext').addEventListener('click', () => {
+    overlay.remove();
+    startPlay();
+  });
+}
+
+/* ─────────────────────────────────────
+   16. DRAWING CANVAS
+───────────────────────────────────── */
+function initDrawCanvas() {
+  const cv = document.getElementById('draw-canvas');
+  const cx = cv.getContext('2d');
+  cx.fillStyle = '#000'; cx.fillRect(0,0,180,180);
+  let drawing = false;
+  const pos = e => {
+    const r = cv.getBoundingClientRect(), t = e.touches ? e.touches[0] : e;
+    return {x:(t.clientX-r.left)*(180/r.width), y:(t.clientY-r.top)*(180/r.height)};
+  };
+  const dot = (x,y) => {
+    cx.beginPath(); cx.arc(x,y,10,0,Math.PI*2);
+    cx.fillStyle='rgba(255,255,255,.95)'; cx.fill();
+  };
+  cv.addEventListener('mousedown',  e=>{drawing=true;const p=pos(e);dot(p.x,p.y);});
+  cv.addEventListener('mousemove',  e=>{if(!drawing)return;const p=pos(e);dot(p.x,p.y);});
+  cv.addEventListener('mouseup',    ()=>drawing=false);
+  cv.addEventListener('mouseleave', ()=>drawing=false);
+  cv.addEventListener('touchstart', e=>{e.preventDefault();drawing=true;const p=pos(e);dot(p.x,p.y);},{passive:false});
+  cv.addEventListener('touchmove',  e=>{e.preventDefault();if(!drawing)return;const p=pos(e);dot(p.x,p.y);},{passive:false});
+  cv.addEventListener('touchend',   ()=>drawing=false);
+
+  document.getElementById('btn-erase').addEventListener('click', () => {
+    cx.fillStyle='#000'; cx.fillRect(0,0,180,180);
+  });
+
+  document.getElementById('btn-run-draw').addEventListener('click', () => {
+    // 1. Preprocess: bounding-box center + MNIST-style scaling
+    const pix = preprocessDraw(cv);
+
+    // 2. Check canvas is not empty
+    const hasInk = pix.some(v => v > 0.1);
+    if (!hasInk) { showToast('الرجاء رسم رقم أولاً ✏️','#f97316'); return; }
+
+    // 3. Recognize digit via cosine similarity template matching
+    const recognized = recognizeDigit(pix);
+    S.digit = recognized;
+
+    // 4. Highlight matching digit button
+    document.querySelectorAll('.digit-btn').forEach(b=>b.classList.remove('sel'));
+    const matchBtn = document.getElementById(`dbtn-${recognized}`);
+    if (matchBtn) matchBtn.classList.add('sel');
+
+    // 5. Run CNN forward pass using the recognized digit as bias target
+    S.data = CNN.forward(pix, recognized);
+
+    // 6. Show feedback toast
+    showToast(`🔍 التعرف على الرقم: ${recognized}`, '#00e5ff');
+
+    resetAll();
+    startPlay();
+  });
+}
+
+/* ─────────────────────────────────────
+   17. CONTROLS
+───────────────────────────────────── */
+function initControls() {
+  document.getElementById('btn-play').addEventListener('click', togglePlay);
+  document.getElementById('btn-prev').addEventListener('click', () => {
+    pausePlay();
+    if (S.step > 0) { S.step--; S.progress = 0; updateUI(); }
+  });
+  document.getElementById('btn-next').addEventListener('click', () => {
+    pausePlay();
+    if (!S.data) S.data = CNN.forward(DIGITS[S.digit].pixels, S.digit);
+    if (S.step < 7) { S.step++; S.progress = 0; updateUI(); }
+  });
+  document.getElementById('btn-reset').addEventListener('click', resetAll);
+
+  const sl = document.getElementById('speed-slider');
+  sl.addEventListener('input', () => {
+    S.speed = parseFloat(sl.value);
+    document.getElementById('speed-val').textContent = `×${S.speed.toFixed(2)}`;
+  });
+
+  // View toggle
+  document.getElementById('btn-2d').addEventListener('click', () => setView('2d'));
+  document.getElementById('btn-3d').addEventListener('click', () => setView('3d'));
+
+  // Show values
+  document.getElementById('btn-vals').addEventListener('click', () => {
+    S.showVals = !S.showVals;
+    document.getElementById('btn-vals').classList.toggle('active', S.showVals);
+  });
+
+  // Quiz mode
+  document.getElementById('btn-quiz').addEventListener('click', () => {
+    S.quizActive = !S.quizActive;
+    document.getElementById('btn-quiz').classList.toggle('active', S.quizActive);
+  });
+
+  // 3D rotation
+  const canvas3d = document.getElementById('canvas-3d');
+  canvas3d.addEventListener('mousedown', e => { S.drag3d=true; S.prev3d={x:e.clientX,y:e.clientY}; });
+  window.addEventListener('mouseup', () => S.drag3d=false);
+  window.addEventListener('mousemove', e => {
+    if (!S.drag3d) return;
+    S.rot3d.y += (e.clientX - S.prev3d.x) * 0.006;
+    S.rot3d.x = Math.max(-1.2, Math.min(1.2, S.rot3d.x + (e.clientY - S.prev3d.y) * 0.006));
+    S.prev3d = {x:e.clientX, y:e.clientY};
+  });
+  canvas3d.addEventListener('wheel', e => {
+    // Zoom by adjusting field of view (handled via scale)
+    const zoomFactor = e.deltaY > 0 ? 1.1 : 0.9;
+    LAYERS_3D.forEach(l => l.x *= zoomFactor);
+  }, {passive: true});
+}
+
+function setView(v) {
+  S.view = v;
+  document.getElementById('btn-2d').classList.toggle('active', v==='2d');
+  document.getElementById('btn-3d').classList.toggle('active', v==='3d');
+  document.getElementById('main-canvas').style.display = v==='2d' ? 'block' : 'none';
+  document.getElementById('wrap-3d').classList.toggle('show', v==='3d');
+}
+
+/* ─────────────────────────────────────
+   18. INIT
+───────────────────────────────────── */
+window.addEventListener('DOMContentLoaded', () => {
+  CNN.init();
+  setupCanvas();
+  buildPipeline();
+  buildDigitGrid();
+  initDrawCanvas();
+  initControls();
+
+  // Auto-select digit 2 as default
+  selectDigit(2);
+
+  // Check URL params for mode
+  const params = new URLSearchParams(location.search);
+  if (params.get('mode') === 'quiz') {
+    S.quizActive = true;
+    document.getElementById('btn-quiz').classList.add('active');
+  }
+
+  requestAnimationFrame(loop);
+});
+</script>
+</body>
+</html>
